@@ -10,7 +10,7 @@ primaryTranscriptAnnotation-manual.pdf
 
 ## Installation
 
-library(devtools)
+library(devtools)  
 install_github("WarrenDavidAnderson/genomicsRpackage/primaryTranscriptAnnotation")
 
 ## Authors
