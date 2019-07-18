@@ -2,30 +2,27 @@
 % Please edit documentation in R/gene_ann.R
 \name{get.gene.end}
 \alias{get.gene.end}
-\title{Defining gene ends}
+\title{Estimate the transcription termination sites (TTSs)}
 \usage{
-get.gene.end(bed = NULL, bw.plus = NULL, bw.minus = NULL,
-  bp.bin = NULL, pk.thresh = 0.1, knot.div = 40, knot.thresh = 5,
-  cnt.thresh = 5, add.to.end = 50000, tau.dist = 10000,
-  frac.max = 1, frac.min = 0.2)
+get.gene.end(bed = NULL, bw = NULL, bp.bin = NULL,
+  pk.thresh = NULL, knot.div = NULL, cnt.thresh = NULL,
+  knot.thresh = NULL, add.to.end = NULL, tau.dist = NULL,
+  frac.max = NULL, frac.min = NULL, sum.thresh = NULL)
 }
 \arguments{
 \item{bed}{bed6 gene coordinates with gene end intervals for estimation of the TTS}
 
-\item{bw.plus}{plus strand bigWig data}
-
-\item{bw.minus}{minus strand bigWig data}
+\item{bw}{plus or minus strand bigWig data}
 
 \item{bp.bin}{the interval at the gene end will be separated into adjacent bins of this size}
 
 \item{pk.thresh}{the TTS is defined as pk.thresh percent of max peak of the spline fit}
 
-\item{knot.div}{the number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number;
-increasing this parameter results and a smoother curve}
-
-\item{knot.thresh}{minimum number of knots, if knot.div gives a lower number, use this}
+\item{knot.div}{the number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number}
 
 \item{cnt.thresh}{read count number below which the TTS is not evaluated}
+
+\item{knot.thresh}{minimum number of knots, if knot.div gives a lower number, use this}
 
 \item{add.to.end}{the maximal length of the search region (bp)}
 
@@ -34,51 +31,15 @@ increasing this parameter results and a smoother curve}
 \item{frac.max}{maximal fraction of gene end region for peal detection}
 
 \item{frac.min}{minimal fraction of gene end region for peal detection}
+
+\item{sum.thresh}{threshold for the min sum of read counts, below this default to the input TTS}
 }
 \value{
-A bed6 file with TTS estimates incorporated, zeros are present if the TTS could not be estimated.
-The output is a list including the bed frame along with several metrics (see example below and vignette).
+A vector of TTS coordinates
 }
 \description{
-Given regions within which to search for TTSs, we opperationally define the TTSs by binning the gene
-end regions, counting reads within the bins, fitting smooth spline curves to the bin counts, and
-detecting points at which the curves decay towards zero. We applied the
-constraint that there must be a specified number of bases in the gene end interval, otherwise the
-TTS analysis is not applied. Similarly, if the number of knots identified is too low, then we set the
-number of knots to a specified threshold. For this analysis, we set a sub-region at the beginning of
-the gene end region and identify the maximal peak from the spline fit. Then we identify the point
-at which the spline fit decays to a threshold level of of the peak level.
-We reasoned that the sub-region should be largest for genes with
-the greatest numbers of clipped bases, because such cases occur when the conventional
-gene ends are proximal to identified TSSs, and we should include these entire regions for analysis of
-the TTS. Similarly, we reasoned that for genes with substantially less clipped bases, and
-correspondingly larger gene end regions with greater potential for observing enhancers or divergent transcripts,
-the sub-regions should be smaller sections of the upstream-most gene end region. We use
-an exponential model to define the sub-regions.
-The user should use the output of get.end.intervals() as an input to this function.
-Note that gene ends will be set to zeros if there are no counts or if the interval is too small.
-This function calls get.TTS().
+This function estimates the TTSs, this function is called by get.gene.end() and is not designed to be run on its own.
 }
 \examples{
-# identify gene ends
-add.to.end = max(bed.for.tts.eval$xy)
-knot.div = 40
-pk.thresh = 0.02
-bp.bin = 50
-knot.thresh = 5
-cnt.thresh = 5
-tau.dist = 10000
-frac.max = 1
-frac.min = 0.2
-gene.ends = get.gene.end(bed=bed.for.tts.eval, bw.plus=bw.plus, bw.minus=bw.minus,
-                     bp.bin=bp.bin, add.to.end=add.to.end, knot.div=knot.div,
-                     pk.thresh=pk.thresh, knot.thresh=knot.thresh,
-                     cnt.thresh=cnt.thresh, tau.dist=tau.dist,
-
-# get metrics
-minus.lowcount = length(gene.ends$minus.lowcount)
-plus.lowcount = length(gene.ends$plus.lowcount)
-minus.knotmod = length(gene.ends$minus.knotmod)
-plus.knotmod = length(gene.ends$plus.knotmod)
-ends = gene.ends$bed
+See get.TTS()
 }

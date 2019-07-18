@@ -10,7 +10,7 @@ get.largest.interval(bed = NULL)
 \item{bed}{bed6 frame with comprehensive gene annotations, defaults to NULL}
 }
 \value{
-a bed6 frame with the largest annotation for each gene
+A bed6 frame with the largest annotation for each gene
 }
 \description{
 The input bed6 file can be derived from a gencode annotation file,

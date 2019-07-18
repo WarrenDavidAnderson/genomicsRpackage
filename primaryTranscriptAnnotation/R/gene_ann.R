@@ -8,7 +8,7 @@
 #' The input bed6 file can be derived from a gencode annotation file,
 #' as described in the vignette
 #' @param bed bed6 frame with comprehensive gene annotations, defaults to NULL
-#' @return a bed6 frame with the largest annotation for each gene
+#' @return A bed6 frame with the largest annotation for each gene
 #' @export
 #' @examples
 #' # get intervals for furthest TSS and TTS +/- interval
@@ -29,20 +29,135 @@ get.largest.interval = function(bed=NULL){
 
 
 ############################################################################################
+## read.count.transcript
+############################################################################################
+
+#' Evaluate reads and compute densities for each transcript of each gene.
+#'
+#' Input coordinates for evaluation of counts and densities.
+#' Return the maximal values across all transcripts of a given gene.
+#' In particular, we return the density associated with the max count for a specific gene.
+#' @param bed a bed6 frame
+#' @param bw.plus plus strand bigWig data
+#' @param bw.minus minus strand bigWig data
+#' @return
+#' A list with counts and desity.
+#' counts = vector with end of gene counts for each gene.
+#' density = vector with end of gene densities for each gene.
+#' @export
+#' @examples
+#' # get read counts and densities for the max transcript of each annotated gene
+#' transcript.reads = read.count.transcript(bed=gencode.transcript, bw.plus=bw.plus, bw.minus=bw.minus)
+#' hist(log(transcript.reads$density), breaks=200, col="black",xlab="log read density",main="")
+#' hist(log(transcript.reads$counts), breaks=200, col="black",xlab="log read count",main="")
+
+read.count.transcript = function(bed=NULL, bw.plus=NULL, bw.minus=NULL){
+
+  genes = unique(bed$gene)
+  res = c()
+  for(gene in genes){
+
+    # transcript coords
+    ind = which(bed$gene == gene)
+    dat = bed[ind,]
+    strand = dat$strand[1]
+
+    # count reads and compute densities for all transcripts
+    # sort upstream to downstream
+    if(strand=="-"){
+      dat.bed = dat[order(dat$end,decreasing=T),]
+      counts = bed.region.bpQuery.bigWig(bw.minus, dat.bed)
+    }
+    if(strand=="+"){
+      dat.bed = dat[order(dat$start),]
+      counts = bed.region.bpQuery.bigWig(bw.plus, dat.bed)
+    }
+    dens = counts / (dat$end - dat$start)
+
+    # tabulate the results, take the upstream transcript for ties
+    ind.max.cnt = which(counts == max(counts))[1]
+    out = data.frame(gene=gene, count=counts[ind.max.cnt], density=dens[ind.max.cnt])
+    res = rbind(res, out)
+
+  } # gene loop
+
+  # return results
+  counts = res$count
+  density = res$density
+  names(counts) = names(density) = genes
+  return(list(counts=counts, density=density))
+
+} # read.count.transcript
+
+
+############################################################################################
+## read.count.body
+############################################################################################
+
+#' Count gene body reads and compute density
+#'
+#' Input coordinates for evaluation of counts and densities.
+#' This function works with input that includes one annotation per gene.
+#' @param bed a bed6 frame
+#' @param bw.plus plus strand bigWig data
+#' @param bw.minus minus strand bigWig data
+#' @param bp.start optional number of bases to omit from the upstream gene boundary
+#' @return
+#' A list with counts and desity.
+#' counts = vector with end of gene counts for each gene.
+#' density = vector with end of gene densities for each gene.
+#' @export
+#' @examples
+#' # get read counts and densities at the body of each annotated gene
+#'
+#' body.reads = read.count.body(bed=largest.interval.bed, bw.plus=bw.plus,
+#' bw.minus=bw.minus, bp.start=bp.start)
+#' hist(log(body.reads$density), breaks=200, col="black",xlab="log read density",main="")
+#' hist(log(body.reads$counts), breaks=200, col="black",xlab="log read count",main="")
+read.count.body = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.start=0){
+
+  # separate genes by strand
+  bed.plus = bed %>% filter(strand=="+")
+  bed.minus = bed %>% filter(strand=="-")
+
+  # modify coords to only look at the body of the gene
+  bed.plus$start = bed.plus$start + bp.start
+  bed.minus$end = bed.minus$end - bp.start
+
+  # get read counts
+  counts.plus = bed.region.bpQuery.bigWig(bw.plus, bed.plus)
+  counts.minus = bed.region.bpQuery.bigWig(bw.minus, bed.minus)
+  names(counts.plus) = bed.plus$gene
+  names(counts.minus) = bed.minus$gene
+
+  # aggregate end count information, compute densities, return results
+  counts = c(counts.plus, counts.minus)
+  plus.denom = bed.plus$end-bed.plus$start
+  minus.denom = bed.minus$end-bed.minus$start
+  density.minus = counts.minus/minus.denom
+  density.plus = counts.plus/plus.denom
+  count.density = c(density.plus, density.minus)
+  return(list(counts=counts, density=count.density))
+
+} # read.count.body
+
+
+############################################################################################
 ## read.count.end
 ############################################################################################
 
 #' Select a regions containing the gene ends
 #'
 #' Select a fraction of the annotated gene end and consider an additional number of base pairs beyond
-#' the gene end within which to count reads
+#' the gene end within which to count reads.
+#' This function works with input that includes one annotation per gene.
 #' @param bed a bed6 frame
 #' @param bw.plus plus strand bigWig data
 #' @param bw.minus minus strand bigWig data
 #' @param fraction.end fraction of the annotated gene end (0,1)
 #' @param add.to.end number of base pairs beyond the gene end within which to count reads
 #' @return
-#' a list with counts and desity.
+#' A list with counts and desity.
 #' counts = vector with end of gene counts for each gene.
 #' density = vector with end of gene densities for each gene.
 #' @export
@@ -95,41 +210,45 @@ read.count.end = function(bed=NULL, bw.plus=NULL, bw.minus=NULL,
 
 #' Select an optimal transcription start site (TSS) for each gene
 #'
-#' We set a range around each annotated gene start within which to search for a region of peak read
-#' density. Such regions of peak read density occur at ’pause sites’ that are typically 20-80 bp from
-#' the TSS. Within each region around an annotated gene start, we translate a sliding
-#' window throughout to find the sub-region with maximal density. We determine the window with the
-#' maximal density out of all regions considered and define the TSS as the upstream boundry of this
-#' window, minus a shift of a specified amount. The output of this function should be processed using the function apply.TSS.coords().
-#' @param bed bed6 file with comprehensive gene annotations
+#' We set a range around each annotated exon 1 within which to search for a read density.
+#' For each gene, we select the upstream coordinate of the first exon with the greatest read density, in the specified region,
+#' out of all first exons annotated for the given gene.
+#' The output of this function should be processed using the function apply.TSS.coords().
+#' Note that input and output genes must be matched.
+#' @param bed.in bed6 frame with first exon gene annotations
+#' @param bed.out bed6 frame for output (same genes as bed.in)
 #' @param bw.plus plus strand bigWig data
 #' @param bw.minus minus strand bigWig data
-#' @param bp.range range to be centered on each gene start for evaluating read counts.
-#'        Note that the value should be divisible by 2
-#' @param bp.delta number of reads to move incrementally - sliding window interval
-#' @param bp.bin bin size for evaluating read counts within a given region
-#' @param delta.tss amount by which to shift the identied TSS upstream of the identified interval
-#' @param cnt.thresh read count number below which the TTS is not evaluated
+#' @param bp.range range in bp for identifying the exon 1 with the greatest density
+#' @param cnt.thresh read count number below which the TSS is not evaluated, by default the gene is removed from the analysis max(counts) < cnt.thresh.
+#' Indicate low.read=TRUE to use the upstream-most TSS for max(counts) < cnt.thresh.
+#' @param low.read Logical for whether to pick the upstream-most TSS if max(counts) < cnt.thresh (default FALSE)
 #' @return
-#' A vector of indentified transcription start site coordinates. Note that strand and chromosome information are not provided here.
+#' A list with a bed6 frame with inferred TSSs (bed) and a list of problematic genes (issues).
+#' Problems documented include start > end and start < 0. For start > end,
+#' the original input corrdinates were retained (bed.out).
+#' For start < 0, start = 0 was applied.
 #' @export
 #' @examples
-#' # select the TSS for each gene
-#' bp.range = 1200
-#' bp.delta = 10
-#' bp.bin = 50
-#' delta.tss = 50
+#' # select the TSS for each gene and incorporate these TSSs into the largest interval coordinates
+#' bp.range = c(20,120)
 #' cnt.thresh = 5
-#' TSS.gene = get.TSS(bed=dat0, bw.plus=bw.plus, bw.minus=bw.minus,
-#'                   bp.range=bp.range, bp.delta=bp.delta, bp.bin=bp.bin,
-#'                   delta.tss=delta.tss, cnt.thresh=cnt.thresh)
-get.TSS = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.range=NULL,
-                   bp.delta=NULL, bp.bin=NULL, delta.tss=NULL, cnt.thresh=NULL){
+#' bed.out = largest.interval.expr.bed
+#' bed.in = gencode.firstExon[gencode.firstExon$gene %in% bed.out$gene,]
+#' TSS.gene = get.TSS(bed.in=bed.in, bed.out=bed.out,
+#'                    bw.plus=bw.plus, bw.minus=bw.minus,
+#'                    bp.range=bp.range, cnt.thresh=cnt.thresh)
+get.TSS = function(bed.in=NULL, bed.out=NULL, bw.plus=NULL, bw.minus=NULL,
+                   bp.range=NULL, cnt.thresh=NULL, low.read=FALSE){
 
-  if(bp.range %% 2 != 0){stop("select a value for bp.range that is divisible by 2")}
+  # error handling. note. input and output genes must be matched
+  if( length(unique(bed.in$gene)) != length(unique(bed.out$gene)) ){stop("input genes do not match output genes")}
+  if( setequal(unique(bed.in$gene),unique(bed.out$gene)) == FALSE ){stop("input genes do not match output genes")}
 
   # loop through each unique gene
   # map reads a range for each annotated TSS
+  bed0 = bed.out
+  bed = bed.in
   genes = unique(bed$gene)
   tss = rep(0,length(genes))
   for(ii in 1:length(genes)){
@@ -137,37 +256,65 @@ get.TSS = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.range=NULL,
     # get gene of interest and strand
     ind.gene = which(bed$gene == genes[ii])
     strand.gene = unique(bed$strand[ind.gene])[1]
+    chr.gene = unique(bed$chr[ind.gene])[1]
 
     # get all sets of intervals around each annotated TSS
-    if(strand.gene == "-"){ starts = unique(bed$end[ind.gene]) }
-    if(strand.gene == "+"){ starts = unique(bed$start[ind.gene]) }
-    ranges = sapply(starts,function(x){ c(x-bp.range/2, x+bp.range/2) })
-    intervals = c()
-    for(jj in 1:ncol(ranges)){
-      x = ranges[,jj]
-      starts = seq(x[1], x[2]-bp.bin, by=bp.delta)
-      ends = seq(x[1]+bp.bin, x[2], by=bp.delta)
-      intervals = rbind(intervals, cbind(starts,ends))
-    } # jj
+    # sort upstream to downstream
+    if(strand.gene == "-"){
+      starts = unique(bed$end[ind.gene])
+      ranges = data.frame(chr=chr.gene, start=starts-bp.range[2],
+                  end=starts-bp.range[1], stringsAsFactors=FALSE)
+      ranges = ranges[order(ranges$end,decreasing=TRUE),]
+    }
+    if(strand.gene == "+"){
+      starts = unique(bed$start[ind.gene])
+      ranges = data.frame(chr=chr.gene, start=starts+bp.range[1],
+                  end=starts+bp.range[2], stringsAsFactors=FALSE)
+      ranges = ranges[order(ranges$start),]
+    }
 
     # get counts for each interval of interest
-    bed.map = cbind(unique(bed$chr[ind.gene]), intervals) %>%
-      as.data.frame(stringsAsFactors=FALSE)
-    bed.map[,2:3] = apply(bed.map[,2:3],2,function(x){data.matrix(x) %>% as.numeric})
-    names(bed.map) = c("chr","start","end")
-    if(strand.gene == "-"){ counts = bed.region.bpQuery.bigWig(bw.minus, bed.map) }
-    if(strand.gene == "+"){ counts = bed.region.bpQuery.bigWig(bw.plus, bed.map) }
+    if(strand.gene == "-"){ counts = bed.region.bpQuery.bigWig(bw.minus, ranges) }
+    if(strand.gene == "+"){ counts = bed.region.bpQuery.bigWig(bw.plus, ranges) }
 
-    # select the best TSS
+    # select the best TSS, select the most upstream for ties
     ind.max.cnt = which(counts == max(counts))[1]
-    if(counts[ind.max.cnt] < cnt.thresh){next}
-    if(strand.gene == "-"){ tss[ii] = bed.map$end[ind.max.cnt] + delta.tss + 1 }
-    if(strand.gene == "+"){ tss[ii] = bed.map$start[ind.max.cnt] - delta.tss }
+    if(counts[ind.max.cnt] < cnt.thresh){
+      if(low.read==TRUE){
+        if(strand.gene == "-"){ tss[ii] = ranges$end[1] + bp.range[1] }
+        if(strand.gene == "+"){ tss[ii] = ranges$start[1] - bp.range[1] }
+      }
+      next
+    }
+    if(strand.gene == "-"){ tss[ii] = ranges$end[ind.max.cnt] + bp.range[1] }
+    if(strand.gene == "+"){ tss[ii] = ranges$start[ind.max.cnt] - bp.range[1] }
 
   } # ii
-
   names(tss) = genes
-  return(tss)
+
+  # note that genes with less counts than cnt.thresh in the max count region
+  # and low.read=FALSE
+  # remove such genes here
+  in.tss.remove = which(tss == 0)
+  tss.remove = names(tss)[in.tss.remove]
+  bed.out = bed.out[!(bed.out$gene %in% tss.remove),]
+
+  # apply TSS coordinates to the expression-filtered long gene annotations
+  # output results
+  issues = c()
+  out = apply.TSS.coords(bed=bed.out, tss=tss)
+  ind = which(out$end < out$start)
+  if(length(ind) > 0){
+    inds = sapply(out$gene[ind],function(x){which(bed0$gene==x)}) %>% unlist
+    out[ind,] = bed0[inds,]
+    issues = bed0$gene[inds]
+  }
+  ind = which(out$start < 0)
+  if(length(ind) > 0){
+    out$start[ind] = 0
+    issues = out$gene[ind]
+  }
+  return(list(bed=out, issues=issues))
 
 } # get.TSS
 
@@ -178,8 +325,8 @@ get.TSS = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.range=NULL,
 
 #' Apply previously identified TSSs to an existing gene annotation
 #'
-#' This function will apply transcription start site (TSS) coordinates to a bed6 frame to incorporate the output from
-#' get.TSS() into an existing bed frame.
+#' This function will apply transcription start site (TSS) coordinates to a bed6 frame.
+#' This function is embedded inside get.TSS().
 #' @param bed bed6 file with comprehensive gene annotations
 #' @param tss TSS estimates, output from get.TSS().
 #'        Note that the TSS genes must be a subset of the genes in the bed6 data.
@@ -187,8 +334,7 @@ get.TSS = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.range=NULL,
 #' A bed6 file with estimated TSSs incorporated
 #' @export
 #' @examples
-#' # apply TSS coordinates to the expression-filtered long gene annotations
-#' bed.long.filtered.tss = apply.TSS.coords(bed=bed.long.filtered, tss=TSS.gene)
+#' out = apply.TSS.coords(bed=bed.out, tss=tss)
 apply.TSS.coords = function(bed=NULL, tss=NULL){
 
   # separate data by strand
@@ -209,17 +355,124 @@ apply.TSS.coords = function(bed=NULL, tss=NULL){
 
 
 ############################################################################################
+## get.dups
+############################################################################################
+
+#' Get duplicates in which start sites match or end sites match
+#'
+#' This function identifies an extreme for of gene overlaps in which multiple identifiers
+#' correspond to identical start or end coordinates.
+#' @param bed a bed file
+#' @return
+#' A bed file with duplicate entries. Col 7 indicates ordered overlap loci.
+#' @export
+#' @examples
+#' dups0 = get.dups(bed = TSS.gene)
+#'
+get.dups = function(bed=NULL){
+
+  # identical start coordinates
+  dup.start = bed[(duplicated(bed[,1:2]) |
+                     duplicated(bed[,1:2],
+                                fromLast=TRUE)),]
+  dup.start = dup.start[order(dup.start$chr,dup.start$start,dup.start$end),]
+
+  # identical end coordinates
+  dup.end = bed[(duplicated(bed[,c(1,3)]) |
+                   duplicated(bed[,c(1,3)],
+                              fromLast=TRUE)),]
+  dup.end = dup.end[order(dup.end$chr,dup.end$start,dup.end$end),]
+
+  # determine the count of duplicate cases and output
+  out = unique(rbind(dup.start,dup.end)) %>% mutate(cases=0)
+  out = out[order(out$chr, out$start, out$end),]
+  if(nrow(out)==0){return(NULL); break}
+  track = 1
+  for(ii in 1:nrow(out)){
+    if(out$cases[ii] == 0){
+      ind.start = which(out$start == out$start[ii])
+      ind.end = which(out$end == out$end[ii])
+      if(length(ind.start)>1){out$cases[ind.start] = track}
+      if(length(ind.end)>1){out$cases[ind.end] = track}
+      track = track + 1
+    }
+  }
+  out = out[order(out$cases, out$chr, out$start, out$end),]
+  return(out)
+
+} # get.dups
+
+
+############################################################################################
+## remove.overlaps
+############################################################################################
+
+#' Filter genes with overlaps
+#'
+#' For a given case in which multiple genes overlap, this function modifies evaluates read density
+#' for all transcripts cooresponding to each gene.
+#' The gene with the largest density across all transcripts is retain in the input annotation.
+#' The related functions get.dups() and gene.overlaps() can be used to identify overlap cases.
+#' @param bed bed6 file with gene annotations
+#' @param overlaps frame with 6 columns in the bed6 format and a 7th column indicating overlap cases
+#' @return
+#' A bed6 frame with overlaps removed. That is, a modified version of the input bed.
+#' @export
+#' @examples
+#' # run overlap analysis
+#' overlap.data = gene.overlaps( bed = bed.long.filtered2.tss )
+#' has.start.inside = overlap.data$has.start.inside
+#' is.a.start.inside = overlap.data$is.a.start.inside
+#' dim(has.start.inside)
+#' dim(is.a.start.inside)
+remove.overlaps = function(bed=NULL, overlaps=NULL, transcripts=NULL,
+                           bw.plus=NULL, bw.minus=NULL){
+
+  # loop through each overlap case and identify genes to keep
+  keep = rep(NA, length(unique(overlaps$cases)))
+  for(ii in unique(overlaps$cases)){
+
+    # get the genes for a given overlap locus
+    dat = overlaps[overlaps$cases==ii,]
+    if(nrow(dat)<2){stop("too few entries, <2 overlaps for a case")}
+    genes = dat$gene
+
+    # loop through genes, get the max density across all transcripts
+    densit = rep(0,length(genes))
+    names(densit) = genes
+    for(jj in genes){
+      transcr = transcripts[transcripts$gene==jj,]
+      strand = transcr$strand[1]
+      if(strand=="+"){counts = bed.region.bpQuery.bigWig(bw.plus, transcr)}
+      if(strand=="-"){counts = bed.region.bpQuery.bigWig(bw.minus, transcr)}
+      den = counts / (transcr$end - transcr$start)
+      densit[jj] = max(den)
+    } # gene loop
+
+    keep[ii] = names(densit)[which(densit == max(densit))[1]]
+
+  } # overlaps loop
+
+  # remove overlapping genes and return the output
+  remove.genes = overlaps$gene[!(overlaps$gene %in% keep)]
+  out = bed[!(bed$gene %in% remove.genes),]
+  return(out)
+
+} # remove.overlaps
+
+
+
+############################################################################################
 ## gene.overlaps
 ############################################################################################
 
 #' Documentation of gene overlaps
 #'
-#' This function identifies gene overlaps that do not involve identical coordinates.
-#' @param bed bed6 file with processed gene annotations
+#' This function identifies gene overlapss.
+#' @param bed bed6 frame with processed gene annotations
 #' @return
 #' A list with has.start.inside and is.a.start.inside. has.start.inside = bed6 file that documents genes in which there are starts
-#'         of other genes. is.a.start.inside = bed6 file that documents genes that start inside other
-#'         genes.
+#' of other genes. is.a.start.inside = bed6 file that documents genes that start inside other genes.
 #' @export
 #' @examples
 #' # run overlap analysis
@@ -237,6 +490,8 @@ gene.overlaps = function(bed=NULL){
   # data for documenting overlaps
   has.start.inside = c()
   is.a.start.inside = c()
+  overlap.dat = rbind(bed.plus, bed.minus) %>% mutate(cases=0)
+  case.ind = 1
 
   # filter plus by start sites to document end/start overlaps
   # loop through each chromosome
@@ -248,10 +503,12 @@ gene.overlaps = function(bed=NULL){
     for(jj in 1:length(inds.chr)){
       start = bed.plus$start[inds.chr][jj]
       end = bed.plus$end[inds.chr][jj]
-      ind.overlap = which(bed.plus$start[inds.chr]>start &
-                            bed.plus$start[inds.chr]<end)
+      ind.overlap = which(bed.plus$start[inds.chr][-jj]>=start &
+                            bed.plus$start[inds.chr][-jj]<=end)
       if(length(ind.overlap) > 0){
-        overlap.genes = paste0(bed.plus$gene[inds.chr][ind.overlap], collapse=",")
+        outer.gene = bed.plus$gene[inds.chr][jj]
+        inner.genes = bed.plus$gene[inds.chr][-jj][ind.overlap]
+        overlap.genes = paste0(inner.genes, collapse=",")
 
         # this gene has a start inside
         bed.orig = bed.plus[inds.chr[jj],]
@@ -259,10 +516,22 @@ gene.overlaps = function(bed=NULL){
         has.start.inside = rbind(has.start.inside, bed.orig)
 
         # this gene starts inside another gene
-        bed.orig = bed.plus[inds.chr[ind.overlap],]
-        bed.orig$xy = paste0("this gene starts inside ", bed.plus$gene[inds.chr][jj])
+        bed.orig = bed.plus[inds.chr[-jj][ind.overlap],]
+        bed.orig$xy = paste0("this gene starts inside ", outer.gene)
         is.a.start.inside = rbind(is.a.start.inside, bed.orig)
-      }
+
+        # document cases
+        inds = sapply(c(outer.gene,inner.genes),function(x){which(overlap.dat$gene==x)}) %>% unlist
+        if(max(unique(overlap.dat$cases[inds]))>0){
+          uni = unique(overlap.dat$cases[inds])
+          caseind = min(uni[which(uni>0)])
+          overlap.dat$cases[inds] = caseind
+          overlap.dat$cases[overlap.dat$cases == max(uni[which(uni>0)])] = caseind
+        } else {
+          overlap.dat$cases[inds] = case.ind
+          case.ind = case.ind + 1
+        }
+      } # if overlaps...
     } ## jj
 
   } # ii, plus
@@ -277,9 +546,12 @@ gene.overlaps = function(bed=NULL){
     for(jj in 1:length(inds.chr)){
       start = bed.minus$end[inds.chr][jj]
       end = bed.minus$start[inds.chr][jj]
-      ind.overlap = which(bed.minus$end[inds.chr]<start & bed.minus$end[inds.chr]>end)
+      ind.overlap = which(bed.minus$end[inds.chr][-jj]<=start &
+                            bed.minus$end[inds.chr][-jj]>=end)
       if(length(ind.overlap) > 0){
-        overlap.genes = paste0(bed.minus$gene[inds.chr][ind.overlap], collapse=",")
+        outer.gene = bed.minus$gene[inds.chr][jj]
+        inner.genes = bed.minus$gene[inds.chr][-jj][ind.overlap]
+        overlap.genes = paste0(inner.genes, collapse=",")
 
         # this gene has a start inside
         bed.orig = bed.minus[inds.chr[jj],]
@@ -287,27 +559,75 @@ gene.overlaps = function(bed=NULL){
         has.start.inside = rbind(has.start.inside, bed.orig)
 
         # this gene starts inside another gene
-        bed.orig = bed.minus[inds.chr[ind.overlap],]
-        bed.orig$xy = paste0("this gene starts inside ", bed.minus$gene[inds.chr][jj])
+        bed.orig = bed.minus[inds.chr[-jj][ind.overlap],]
+        bed.orig$xy = paste0("this gene starts inside ", outer.gene)
         is.a.start.inside = rbind(is.a.start.inside, bed.orig)
-      }
+
+        # document cases
+        overlapers = c(outer.gene,inner.genes)
+        inds = sapply(overlapers,function(x){which(overlap.dat$gene==x)}) %>% unlist
+        if(max(unique(overlap.dat$cases[inds]))>0){
+          uni = unique(overlap.dat$cases[inds])
+          caseind = min(uni[which(uni>0)])
+          overlap.dat$cases[inds] = caseind
+          overlap.dat$cases[overlap.dat$cases == max(uni[which(uni>0)])] = caseind
+        } else {
+          overlap.dat$cases[inds] = case.ind
+          case.ind = case.ind + 1
+        }
+      } # if overlaps...
     } ## jj
 
   } # ii, minus
 
-  # generate output
+  # format data and generate output
+  # reset cases counts to interval 1 if necessary
+  # e.g., length(unique(cases1$cases)) == max(unique(cases1$cases))
+  cases0 = overlap.dat[which(overlap.dat$cases>0),]
+  cases0 = cases0[order(cases0$cases),]
+  cases1 = cases0
+  for(ii in 1:length(unique(cases0$cases))){
+    cases1$cases[cases0$cases == unique(cases0$cases)[ii]] = ii
+  }
   return( list(has.start.inside=has.start.inside,
-               is.a.start.inside=is.a.start.inside) )
+               is.a.start.inside=is.a.start.inside,
+               cases=cases1) )
 
 } # gene.overlaps
 
 
+
 ############################################################################################
-## adjacent.gene.tss
+## inside.starts
 ############################################################################################
 
+#' Identify genes with multiple starts inside
+#'
+#' This function identifies genes within which >1 start is observed.
+#' That is, relatively 'large' genes in which 2 or more genes originate.
+#' Data generated from gene.overlaps() serve as input to this function.
+#' @param vec input the xy column from the $is.a.start.inside output of gene.overlaps()
+#' @return
+#' A vector of genes within which multiple starts are observed.
+#' @export
+#' @examples
+#' overlap.data = gene.overlaps( bed = TSS.gene.filtered1 )
+#' is.a.start.inside = overlap.data$is.a.start.inside
+#' mult.inside.starts = inside.starts(vec = is.a.start.inside$xy)
+inside.starts = function(vec=NULL){
+  mult.inside.starts = vec[duplicated(vec) | duplicated(vec, fromLast=TRUE)] %>% unique
+  mult.inside.starts = sapply(mult.inside.starts,function(x){
+    strsplit(x,"inside ")[[1]][2]}) %>% unname
+  return(mult.inside.starts)
+} # inside.starts
 
-#' Function to identify transcription start sites (TSSs) for adjacent gene pairs
+
+
+############################################################################################
+## adjacent.gene.coords
+############################################################################################
+
+#' Function to identify coordinates for adjacent gene pairs
 #'
 #' We have identified adjacent gene pairs with overlaps based on manual analyses.
 #' We empirically define TSSs for these genes by binning the region spanned by both genes,
@@ -315,8 +635,12 @@ gene.overlaps = function(bed=NULL){
 #' by a specified distance. We set a bin size and apply the constraint that the identified
 #' 'pause' peaks must be a given distance apart. The search region includes a specified distance upstream of
 #' the upstream-most gene. We shift the identified peaks upstream. For the spline fits, we set the
-#' number of knots to the number of bins divided by specified setting. See also get.TSS().
+#' number of knots to the number of bins divided by specified setting.
+#' We identify the TSSs as the exon 1 coordinates closest to the pasue site peaks.
+#' We identify the TTS of the upstream gene as an interval from the TSS of the downstream gene.
+#' The input TTS for the downstream gene is retained.
 #' @param fix.genes frame with upstream and downstream genes
+#' @param exon1 bed6 frame with first exon gene annotations
 #' @param bed.long long gene annotations, see get.largest.interval()
 #' @param bw.plus plus strand bigWig data
 #' @param bw.minus minus strand bigWig data
@@ -326,29 +650,37 @@ gene.overlaps = function(bed=NULL){
 #' @param knot.div the number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number
 #' @param knot.thresh minimum number of knots
 #' @param diff.tss minimum distance between TSSs
+#' @param pause.bp number of bp by which a pause site should be considered downstrean of a TSS
+#' @param dist.from.start distance between the TTS of the upstream gene and the TSS of the downstream gene
 #' @param fname file name (.pdf) for output plots
 #' @return
-#' A vector of TSSs, along with a plot. The titles for the plots indicate the upstream gene, the downstream gene, and the strand.
+#' A frame with the adjusted coordinates for the input gene set, along with a plot. The titles for the plots indicate the upstream gene, the downstream gene, and the strand.
 #' For genes on the plus strand, the upstream gene is on the left. For the minus strand, the upstream gene is on the right.
 #' The red line denotes the spline fit and the vertical lines indicate the TSSs.
 #' The plot is intended for diagnostic purposes.
 #' @export
 #' @examples
 #' # get the start sites for adjacent gene pairs
-#' bp.bin = 10
+#' fix.genes = rbind(fix.genes.id, fix.genes.ov)
+#' bp.bin = 5
 #' knot.div = 40
 #' shift.up = 100
 #' delta.tss = 50
-#' diff.tss = 2000
-#' TSS.adjacent = adjacent.gene.tss(fix.genes=fix.genes, bed.long=bed.long,
-#'                               bw.plus=bw.plus, bw.minus=bw.minus,
-#'                               knot.div=knot.div, bp.bin=bp.bin,
-#'                               shift.up=shift.up, delta.tss=delta.tss,
-#'                               diff.tss=diff.tss, fname="adjacentTSS.pdf")
-adjacent.gene.tss = function(fix.genes=NULL, bed.long=NULL, bw.plus=NULL,
+#' diff.tss = 1000
+#' dist.from.start  = 50
+#' adjacent.coords = adjacent.gene.coords(fix.genes=fix.genes, bed.long=TSS.gene,
+#'                                        exon1=gencode.firstExon,
+#'                                        bw.plus=bw.plus, bw.minus=bw.minus,
+#'                                        knot.div=knot.div, bp.bin=bp.bin,
+#'                                        shift.up=shift.up, delta.tss=delta.tss,
+#'                                        dist.from.start=dist.from.start,
+#'                                        diff.tss=diff.tss, fname="adjacentSplines.pdf")
+#'
+adjacent.gene.coords = function(fix.genes=NULL, bed.long=NULL, exon1=NULL, bw.plus=NULL,
                              bw.minus=NULL, bp.bin=NULL, shift.up=NULL,
+                             dist.from.start = 50,
                              delta.tss=NULL, knot.div=4, knot.thresh=5,
-                             diff.tss=1000, fname="adjacentTSS.pdf"){
+                             diff.tss=1000, pause.bp=120, fname="adjacentSplines.pdf"){
 
   TSS = c()
   pdf(fname)
@@ -431,53 +763,169 @@ adjacent.gene.tss = function(fix.genes=NULL, bed.long=NULL, bw.plus=NULL,
   } # ii
   dev.off()
   TSS$TSS = as.numeric(TSS$TSS)
-  return(TSS)
-} # adjacent.gene.tss
 
+  # get the TSS based on the closest exon 1
+  new.bed = bed.long[bed.long$gene %in% c(fix.genes$upstream,fix.genes$downstream),]
+  for(ii in 1:nrow(fix.genes)){
+
+    # specify gene, strand
+    upgene = fix.genes$upstream[ii]
+    dngene = fix.genes$downstream[ii]
+    strand = bed.long$strand[bed.long$gene == upgene]
+    pause.up = TSS$TSS[TSS$gene == upgene]
+    pause.dn = TSS$TSS[TSS$gene == fix.genes$downstream[ii]]
+
+    if(strand == "+"){
+      # upstream ordered exon 1
+      tss.up = exon1$start[exon1$gene == upgene] %>% unique
+      tss.dn = exon1$start[exon1$gene == dngene] %>% unique
+      tss.up = tss.up[order(tss.up)]
+      tss.dn = tss.dn[order(tss.dn)]
+
+      # downstream closest exon 1
+      dp_tss = pause.dn - tss.dn
+      ind.dn = which(abs(dp_tss) == min(abs(dp_tss)))[1]
+      tss.dn = tss.dn[ind.dn]
+
+      # upstream closest exon 1
+      tss.up = tss.up[tss.up < tss.dn]
+      dp_tss = pause.up - tss.up
+      ind.up = which(abs(dp_tss) == min(abs(dp_tss)))[1]
+      tss.up = tss.up[ind.up]
+
+      # apply inferred TSS coords
+      new.bed$start[new.bed$gene == upgene] = tss.up
+      new.bed$start[new.bed$gene == dngene] = tss.dn
+    }
+
+    if(strand == "-"){
+      # upstream ordered exon 1
+      tss.up = exon1$end[exon1$gene == upgene] %>% unique
+      tss.dn = exon1$end[exon1$gene == dngene] %>% unique
+      tss.up = tss.up[order(tss.up,decreasing=TRUE)]
+      tss.dn = tss.dn[order(tss.dn,decreasing=TRUE)]
+
+      # downstream closest exon 1
+      dp_tss = tss.dn - pause.dn
+      ind.dn = which(abs(dp_tss) == min(abs(dp_tss)))[1]
+      tss.dn = tss.dn[ind.dn]
+
+      # upstream closest exon 1
+      tss.up = tss.up[tss.up > tss.dn]
+      dp_tss = tss.up - pause.up
+      ind.up = which(abs(dp_tss) == min(abs(dp_tss)))[1]
+      tss.up = tss.up[ind.up]
+
+      # apply inferred TSS coords
+      new.bed$end[new.bed$gene == upgene] = tss.up
+      new.bed$end[new.bed$gene == dngene] = tss.dn
+    }
+
+  } # exon 1 fix.genes loop, tss
+
+  # apply TTSs
+  for(ii in 1:nrow(fix.genes)){
+
+    # specify gene, strand
+    upgene = fix.genes$upstream[ii]
+    dngene = fix.genes$downstream[ii]
+    strand = bed.long$strand[bed.long$gene == upgene]
+
+    if(strand=="+"){
+      tss.dn = new.bed$start[new.bed$gene == dngene]
+      new.bed$end[new.bed$gene == upgene] = tss.dn - dist.from.start
+    }
+
+    if(strand=="-"){
+      tss.dn = new.bed$end[new.bed$gene == dngene]
+      new.bed$start[new.bed$gene == upgene] = tss.dn + dist.from.start
+    }
+
+  } # exon 1 fix.genes loop, tts
+
+  return(new.bed)
+} # adjacent.gene.coords
 
 
 ############################################################################################
-## adjacent.gene.tts
+## adjacent.coords.plot
 ############################################################################################
 
-#' Function to identify gene ends (TTSs) for adjacent gene pairs
+
+#' Plot adjacent gene pair coordinates
 #'
-#' We set the TTSs for the upstream genes to a given distance from the starts of the downstream genes for the
-#' adjacent gene pairs. See also adjacent.gene.tss().
-#' @param fix.genes frame with upstream and downstream genes for adjacent gene pairs
-#' @param bed.long comprehensive gene annotations with large intervals defined by get.largest.interval()
-#' @param TSS.adjacent TSSs for adjancent genes, identified from adjacent.gene.tss()
-#' @param dist.from.start distance between the TTS of the upstream gene and the TSS of the downstream gene
+#' Plot the coordinates, along with read data, for overlapping genes that were identified as an adjacent pair.
+#' @param adjacent.coords bed6 frame with coordinates for adjacent genes
+#' @param pair frame with one row, upstream and downstream genes
+#' @param bw.plus plus strand bigWig data
+#' @param bw.minus minus strand bigWig data
+#' @param xper fraction of the x-axis before the gene starts
+#' @param yper fraction of the y-axis with open space above the read data
 #' @return
-#' A bed6 frame with TTSs for upstream genes in adjacent gene pairs
+#' A plot with read data and gene coordinate annotations.
 #' @export
 #' @examples
-#' # get the end sites for adjacent upstream genes, integrate with TSSs
-#' dist.from.start = 50
-#' adjacent.tts.up = adjacent.gene.tts(fix.genes=fix.genes, bed.long=bed.long,
-#'                                  TSS.adjacent=TSS.adjacent, dist.from.start=dist.from.start)
-#' tss = TSS.adjacent$TSS
-#' names(tss) = TSS.adjacent$gene
-#' adjacent.tts.up = apply.TSS.coords(bed=adjacent.tts.up, tss=tss)
-adjacent.gene.tts = function(fix.genes=NULL, bed.long=NULL, TSS.adjacent=NULL,
-                             dist.from.start=NULL){
+#' # visualize coordinates for a specific pair
+#' adjacent.coords.plot(adjacent.coords=adjacent.coords,
+#'                   pair=fix.genes[4,],
+#'                   bw.plus=bw.plus, bw.minus=bw.minus)
+#'
+adjacent.coords.plot = function(adjacent.coords=NULL, pair=NULL,
+                                bw.plus=NULL, bw.minus=NULL, bp.bin=5,
+                                xper=0.2, yper=1.3) {
 
-  # get upstream TTSs
-  gene.ends.up = bed.long[bed.long$gene %in% fix.genes$upstream,]
-  for(ii in 1:nrow(fix.genes)){
-    upstr = TSS.adjacent$TSS[TSS.adjacent$gene == fix.genes$upstream[ii]]
-    downstr = TSS.adjacent$TSS[TSS.adjacent$gene == fix.genes$downstream[ii]]
-    strand = bed.long$strand[bed.long$gene == fix.genes$upstream[ii]]
-    if(strand == "+"){gene.ends.up$end[gene.ends.up$gene==fix.genes$upstream[ii]] =
-      as.numeric(downstr) - dist.from.start}
-    if(strand == "-"){gene.ends.up$start[gene.ends.up$gene==fix.genes$upstream[ii]] =
-      as.numeric(downstr) + dist.from.start}
+  # coords for adjacent genes
+  genes = c(pair$upstream, pair$downstream)
+  strand = adjacent.coords$strand[adjacent.coords$gene %in% genes[1]]
+  chr = adjacent.coords$chr[adjacent.coords$gene %in% genes[1]]
+  coords0 = adjacent.coords[adjacent.coords$gene %in% genes,]
+  min.str = min(coords0$start)
+  max.end = max(coords0$end)
+  totdist = max.end - min.str
+  str = min.str - xper * totdist
+  end = max.end + xper * totdist
+
+  # map reads to the interval
+  starts = seq(str, end-bp.bin, by=bp.bin)
+  ends = seq(str+bp.bin, end, by=bp.bin) - 1
+  len = min(length(starts),length(ends))
+  segments = data.frame(chr, starts[1:len], ends[1:len],
+                        stringsAsFactors=FALSE)
+  names(segments) = c("chr","start","end")
+  if(strand=="+"){
+    counts = bed.region.bpQuery.bigWig(bw.plus, segments)
+    bp.axis = segments$start
+    main = paste0(pair$upstream, ", ", pair$downstream)
+  }
+  if(strand=="-"){
+    counts = bed.region.bpQuery.bigWig(bw.minus, segments)
+    bp.axis = segments$end
+    main = paste0(pair$downstream, ", ", pair$upstream)
   }
 
-  # return results
-  return(gene.ends.up)
+  # plot read data
+  max.reads = max(counts)
+  ymax = yper * max.reads
+  plot(bp.axis,counts,type="l",ylim=c(0,ymax), main=main,
+       xlab=paste0("coordinates (bp), ",chr,", strand ",strand))
 
-} # adjacent.gene.tts
+  # upstream coords
+  dopen = ymax - max.reads
+  coord.lev = max.reads + dopen/2
+  upcoords = adjacent.coords[adjacent.coords$gene==pair$upstream,]
+  x = seq(upcoords$start, upcoords$end, 1)
+  y = rep(coord.lev, length(x))
+  points(x,y,type="l",lwd=4)
+
+  # downstream coords
+  dopen = ymax - max.reads
+  coord.lev = max.reads + dopen/3
+  upcoords = adjacent.coords[adjacent.coords$gene==pair$downstream,]
+  x = seq(upcoords$start, upcoords$end, 1)
+  y = rep(coord.lev, length(x))
+  points(x,y,type="l",lwd=4)
+
+} # adjacent.coords.plot
 
 
 ############################################################################################
@@ -502,7 +950,7 @@ adjacent.gene.tts = function(fix.genes=NULL, bed.long=NULL, TSS.adjacent=NULL,
 #' @param fraction.end fraction of the gene annotation to consider at the end of the gene
 #' @param dist.from.start the maximal allowable distance between the end of one gene and the start of the next
 #' @return
-#' A bed6 for gene end evaluation
+#' A bed6 for gene end evaluation.
 #' @export
 #' @examples
 #' # get intervals for TTS evaluation
@@ -628,19 +1076,24 @@ get.end.intervals = function(bed=NULL, add.to.end=NULL, fraction.end=NULL,
   } # ii, minus
 
   # output
+  # set xy column to zero for unclipped genes
   bed.out = rbind(bed.plus.new, bed.minus.new)
+  bed.out$xy[bed.out$xy == "na"] = 0
+  bed.out$xy = as.numeric(bed.out$xy)
+  ind.prob = which(bed.out$start < 0)
+  if(length(ind.prob) > 0){bed.out$start[ind.prob] = 0}
   return(bed.out)
 
 } # get.end.intervals
 
 
 ############################################################################################
-## get.gene.end
+## get.TTS
 ############################################################################################
 
 #' Defining gene ends
 #'
-#'Given regions within which to search for TTSs, we opperationally define the TTSs by binning the gene
+#' Given regions within which to search for TTSs, we opperationally define the TTSs by binning the gene
 #' end regions, counting reads within the bins, fitting smooth spline curves to the bin counts, and
 #' detecting points at which the curves decay towards zero. We applied the
 #' constraint that there must be a specified number of bases in the gene end interval, otherwise the
@@ -657,8 +1110,9 @@ get.end.intervals = function(bed=NULL, add.to.end=NULL, fraction.end=NULL,
 #' an exponential model to define the sub-regions.
 #' The user should use the output of get.end.intervals() as an input to this function.
 #' Note that gene ends will be set to zeros if there are no counts or if the interval is too small.
-#' This function calls get.TTS().
+#' This function calls get.gene.end().
 #' @param bed bed6 gene coordinates with gene end intervals for estimation of the TTS
+#' @param tss bed6 gene coordinates containing estimated TSSs
 #' @param bw.plus plus strand bigWig data
 #' @param bw.minus minus strand bigWig data
 #' @param bp.bin the interval at the gene end will be separated into adjacent bins of this size
@@ -671,35 +1125,33 @@ get.end.intervals = function(bed=NULL, add.to.end=NULL, fraction.end=NULL,
 #' @param tau.dist distance constant for the exponential defining the region for peak detection
 #' @param frac.max maximal fraction of gene end region for peal detection
 #' @param frac.min minimal fraction of gene end region for peal detection
+#' @param sum.thresh threshold for the min sum of read counts, below this default to the input TTS (default 20)
 #' @return
-#' A bed6 file with TTS estimates incorporated, zeros are present if the TTS could not be estimated.
+#' A bed6 file with TTS estimates incorporated, original TTSs are present if the TTS could not be estimated.
 #' The output is a list including the bed frame along with several metrics (see example below and vignette).
 #' @export
 #' @examples
 #' # identify gene ends
 #' add.to.end = max(bed.for.tts.eval$xy)
 #' knot.div = 40
-#' pk.thresh = 0.02
+#' pk.thresh = 0.05
 #' bp.bin = 50
 #' knot.thresh = 5
 #' cnt.thresh = 5
 #' tau.dist = 10000
 #' frac.max = 1
 #' frac.min = 0.2
-#' gene.ends = get.gene.end(bed=bed.for.tts.eval, bw.plus=bw.plus, bw.minus=bw.minus,
-#'                      bp.bin=bp.bin, add.to.end=add.to.end, knot.div=knot.div,
-#'                      pk.thresh=pk.thresh, knot.thresh=knot.thresh,
-#'                      cnt.thresh=cnt.thresh, tau.dist=tau.dist,
+#' inferred.coords = get.TTS(bed=bed.for.tts.eval, tss=TSS.gene.filtered3,
+#'                           bw.plus=bw.plus, bw.minus=bw.minus,
+#'                           bp.bin=bp.bin, add.to.end=add.to.end,
+#'                           knot.div=knot.div,
+#'                           pk.thresh=pk.thresh, knot.thresh=knot.thresh,
+#'                           cnt.thresh=cnt.thresh, tau.dist=tau.dist,
+#'                           frac.max=frac.max, frac.min=frac.min)
 #'
-#' # get metrics
-#' minus.lowcount = length(gene.ends$minus.lowcount)
-#' plus.lowcount = length(gene.ends$plus.lowcount)
-#' minus.knotmod = length(gene.ends$minus.knotmod)
-#' plus.knotmod = length(gene.ends$plus.knotmod)
-#' ends = gene.ends$bed
-get.gene.end = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.bin=NULL,
+get.TTS = function(bed=NULL, tss=NULL, bw.plus=NULL, bw.minus=NULL, bp.bin=NULL,
                         pk.thresh=0.1, knot.div=40, knot.thresh=5,
-                        cnt.thresh=5, add.to.end=50000,
+                        cnt.thresh=5, add.to.end=50000, sum.thresh=20,
                         tau.dist=10000, frac.max=1, frac.min=0.2){
 
   # separate genes by strand
@@ -707,42 +1159,51 @@ get.gene.end = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.bin=NULL,
   bed.minus = bed %>% filter(strand=="-")
 
   # get TTS for each gene
-  TTS.plus = get.TTS(bed=bed.plus,
-                     bw=bw.plus, bp.bin=bp.bin,
-                     pk.thresh=pk.thresh,
-                     knot.div=knot.div,
-                     cnt.thresh=cnt.thresh,
-                     knot.thresh=knot.thresh,
-                     add.to.end=add.to.end,
-                     tau.dist=tau.dist,
-                     frac.max=frac.max,
-                     frac.min=frac.min)
-  TTS.minus = get.TTS(bed=bed.minus,
-                      bw=bw.minus, bp.bin=bp.bin,
-                      pk.thresh=pk.thresh,
-                      knot.div=knot.div,
-                      cnt.thresh=cnt.thresh,
-                      knot.thresh=knot.thresh,
-                      add.to.end=add.to.end,
-                      tau.dist=tau.dist,
-                      frac.max=frac.max,
-                      frac.min=frac.min)
+  TTS.plus = get.gene.end(bed=bed.plus,
+                          bw=bw.plus, bp.bin=bp.bin,
+                          pk.thresh=pk.thresh,
+                          knot.div=knot.div,
+                          cnt.thresh=cnt.thresh,
+                          knot.thresh=knot.thresh,
+                          add.to.end=add.to.end,
+                          tau.dist=tau.dist,
+                          frac.max=frac.max,
+                          frac.min=frac.min,
+                          sum.thresh=sum.thresh)
+  TTS.minus = get.gene.end(bed=bed.minus,
+                            bw=bw.minus, bp.bin=bp.bin,
+                            pk.thresh=pk.thresh,
+                            knot.div=knot.div,
+                            cnt.thresh=cnt.thresh,
+                            knot.thresh=knot.thresh,
+                            add.to.end=add.to.end,
+                            tau.dist=tau.dist,
+                            frac.max=frac.max,
+                            frac.min=frac.min,
+                            sum.thresh=sum.thresh)
 
   # aggregate data and return
-  bed.plus$end = TTS.plus$tts
-  bed.minus$start = TTS.minus$tts
+  bed.plus$end[TTS.plus$tts != 0] = TTS.plus$tts[TTS.plus$tts != 0]
+  bed.minus$start[TTS.minus$tts != 0] = TTS.minus$tts[TTS.minus$tts != 0]
   bed.out = rbind(bed.plus, bed.minus)
-  return(list(bed=bed.out,
+  ind.prob = which(bed.out$start < 0)
+  if(length(ind.prob) > 0){bed.out$start[ind.prob] = 0}
+  tss.plus = tss$start[tss$strand=="+"]
+  tss.minus = tss$end[tss$strand=="-"]
+  names(tss.plus) = tss$gene[tss$strand=="+"]
+  names(tss.minus) = tss$gene[tss$strand=="-"]
+  out = apply.TSS.coords(bed=bed.out, tss=c(tss.plus, tss.minus))
+  return(list(bed=out,
               minus.lowcount=TTS.minus$lowcount,
               plus.lowcount=TTS.plus$lowcount,
               minus.knotmod=TTS.minus$knotmod,
               plus.knotmod=TTS.plus$knotmod))
 
-} # get.gene.end
+} # get.TTS
 
 
 ############################################################################################
-## get.TTS
+## get.gene.end
 ############################################################################################
 
 #' Estimate the transcription termination sites (TTSs)
@@ -759,14 +1220,15 @@ get.gene.end = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, bp.bin=NULL,
 #' @param tau.dist distance constant for the exponential defining the region for peak detection
 #' @param frac.max maximal fraction of gene end region for peal detection
 #' @param frac.min minimal fraction of gene end region for peal detection
+#' @param sum.thresh threshold for the min sum of read counts, below this default to the input TTS
 #' @return
 #' A vector of TTS coordinates
 #' @export
 #' @examples
-#' See get.gene.end()
-get.TTS = function(bed=NULL, bw=NULL, bp.bin=NULL, pk.thresh=NULL, knot.div=NULL,
+#' See get.TTS()
+get.gene.end = function(bed=NULL, bw=NULL, bp.bin=NULL, pk.thresh=NULL, knot.div=NULL,
                    cnt.thresh=NULL, knot.thresh=NULL, add.to.end=NULL,
-                   tau.dist=NULL, frac.max=NULL, frac.min=NULL){
+                   tau.dist=NULL, frac.max=NULL, frac.min=NULL, sum.thresh=NULL){
 
   # check strand
   strand = unique(bed$strand)
@@ -808,6 +1270,7 @@ get.TTS = function(bed=NULL, bw=NULL, bp.bin=NULL, pk.thresh=NULL, knot.div=NULL
     }
     counts = bed.region.bpQuery.bigWig(bw, bed.map)
     if(length(counts) < cnt.thresh){lowcount = c(lowcount,ii); next}
+    if(sum(counts) < sum.thresh){next}
 
     # fit a spline to the count profile
     # get peaks from the spline fit and estimate the best TTS
@@ -817,7 +1280,7 @@ get.TTS = function(bed=NULL, bw=NULL, bp.bin=NULL, pk.thresh=NULL, knot.div=NULL
     if(strand=="+"){
       spl = smooth.spline(x=bed.map$end, y=counts, all.knots=FALSE, nknots=nknots)
       pks = findpeaks(spl$y[1:round(frac.dist*length(spl$y))], nups=0)
-      indpk = which( pks[,1] == max(pks[,1]) )
+      indpk = which( pks[,1] == max(pks[,1]) )[1]
       ind.tts = which(spl$y[pks[indpk,2]:length(spl$y)] < pk.thresh * max(pks[,1]))
       if(length(ind.tts) == 0){
         TTS = spl$x[length(spl$x)]
@@ -830,7 +1293,7 @@ get.TTS = function(bed=NULL, bw=NULL, bp.bin=NULL, pk.thresh=NULL, knot.div=NULL
     if(strand=="-"){
       spl = smooth.spline(x=-bed.map$start, y=counts, all.knots=FALSE, nknots=nknots)
       pks = findpeaks(spl$y[1:round(frac.dist*length(spl$y))], nups=0)
-      indpk = which( pks[,1] == max(pks[,1]) )
+      indpk = which( pks[,1] == max(pks[,1]) )[1]
       ind.tts = which(spl$y[pks[indpk,2]:length(spl$y)] < pk.thresh * max(pks[,1]))
       if(length(ind.tts)==0){
         TTS = -spl$x[length(spl$x)]
@@ -844,7 +1307,120 @@ get.TTS = function(bed=NULL, bw=NULL, bp.bin=NULL, pk.thresh=NULL, knot.div=NULL
     tts[ii] = TTS
   } # ii
   return(list(tts=tts, lowcount=lowcount, knotmod=knotmod))
-} # get.TTS
+} # get.gene.end
+
+
+############################################################################################
+## tts.plot
+############################################################################################
+
+
+#' Plot inferred and largest interval coordinates
+#'
+#' Plot the inferred and largest interval coordinates, along with read data,
+#' indicate the peak search region, and indicate the total search region.
+#' @param coords bed6 frame with inferred coordinates
+#' @param gene.end bed6 frame with peak search regions
+#' @param long.gene bed6 frame with largest interval coordinates
+#' @param gene gene for plotting
+#' @param bw.plus plus strand bigWig data
+#' @param bw.minus minus strand bigWig data
+#' @param add.to.end the maximal length of the search region (bp)
+#' @param tau.dist distance constant for the exponential defining the region for peak detection
+#' @param frac.max maximal fraction of gene end region for peal detection
+#' @param frac.min minimal fraction of gene end region for peal detection
+#' @param xper fraction of the x-axis before the gene starts
+#' @param yper fraction of the y-axis with open space above the read data
+#' @return
+#' A plot with reads, interred annptation (black) largest interval annotation (gray),
+#' TTS search interval (solid, vertical), and TTS peak interval (dashed, vertical).
+#' @export
+#' @examples
+#' gene.end = bed.for.tts.eval
+#' long.gene = largest.interval.bed
+#' tts.plot(coords=coords, gene.end=gene.end, long.gene=long.gene,
+#'          gene = "Pparg", xper=0.2, yper=0.3,
+#'          frac.min=frac.min, frac.max=frac.max,
+#'          bw.plus=bw.plus, bw.minus=bw.minus, bp.bin=5,
+#'          add.to.end=add.to.end, tau.dist=tau.dist)
+#'
+tts.plot = function(coords=NULL, gene.end=NULL, long.gene=NULL,
+                    bw.plus=NULL, bw.minus=NULL, bp.bin=5, gene=NULL,
+                    xper=0.2, yper=1.3, add.to.end=NULL, tau.dist=NULL,
+                    frac.max=NULL, frac.min=NULL) {
+
+  # coords for adjacent genes
+  strand = coords$strand[coords$gene %in% gene]
+  chr = coords$chr[coords$gene %in% gene]
+  coord = coords[coords$gene == gene,]
+  long = long.gene[long.gene$gene == gene,]
+
+  # total search window, x-axis boundaries
+  search = gene.end[gene.end$gene == gene,]
+  min.str = min(c(coord$start, search$start, long$start))
+  max.end = max(c(coord$end, search$end, long$end))
+  totdist = max.end - min.str
+  str = min.str - xper * totdist
+  end = max.end + xper * totdist
+
+  # map reads to the interval
+  starts = seq(str, end-bp.bin, by=bp.bin)
+  ends = seq(str+bp.bin, end, by=bp.bin)
+  len = min(length(starts),length(ends))
+  segments = data.frame(chr, starts[1:len], ends[1:len],
+                        stringsAsFactors=FALSE)
+  names(segments) = c("chr","start","end")
+  if(strand=="+"){
+    counts = bed.region.bpQuery.bigWig(bw.plus, segments)
+    bp.axis = segments$start
+    main = gene
+  }
+  if(strand=="-"){
+    counts = bed.region.bpQuery.bigWig(bw.minus, segments)
+    bp.axis = segments$end
+    main = gene
+  }
+
+  # plot read data
+  max.reads = max(counts)
+  ymax = (1+yper) * max.reads
+  plot(bp.axis,counts,type="l",ylim=c(0,ymax), main=main,
+       xlab=paste0("coordinates (bp), ",chr,", strand ",strand))
+
+  # inferred coords
+  dopen = ymax - max.reads
+  coord.lev = max.reads + dopen/2
+  x = seq(coord$start, coord$end, 1)
+  y = rep(coord.lev, length(x))
+  points(x,y,type="l",lwd=4,col="darkgray")
+
+  # largest interval coords
+  c2 = long.gene[long.gene$gene == gene,]
+  coord.lev = max.reads + dopen/3
+  x = seq(c2$start, c2$end, 1)
+  y = rep(coord.lev, length(x))
+  points(x,y,type="l",lwd=4,col="black")
+
+  # plot search window
+  abline(v=search$start)
+  abline(v=search$end)
+
+  # set region for peak analysis
+  clip = search$xy
+  x = c(-add.to.end:0)
+  y0 = exp(-x/tau.dist)
+  y = ( (y0-min(y0))/(max(y0)-min(y0)) ) * (frac.max-frac.min) + frac.min
+  frac.dist = y[add.to.end - clip + 1]
+  ds = frac.dist * (search$end - search$start)
+  if(strand == "+"){
+    abline(v=search$start+ds, lty=2)
+  }
+  if(strand == "-"){
+    abline(v=search$end-ds, lty=2)
+  }
+
+} # tts.plot
+
 
 
 ############################################################################################
@@ -870,7 +1446,7 @@ get.TTS = function(bed=NULL, bw=NULL, bp.bin=NULL, pk.thresh=NULL, knot.div=NULL
 #' @param frac.max maximal fraction of gene end region for peal detection
 #' @param frac.min minimal fraction of gene end region for peal detection
 #' @return
-#' A single plot is generated
+#' A single plot is generated.
 #' @export
 #' @examples
 #' gene.end.plot(bed=bed.for.tts.eval, gene="Aamp",
@@ -964,6 +1540,187 @@ gene.end.plot = function(bed=NULL, gene=NULL, bw.plus=NULL, bw.minus=NULL, bp.bi
 
 
 ############################################################################################
+## TTS.boundry.match
+############################################################################################
+
+#' Check for the fraction of identified TTSs that match the search boundry
+#'
+#' This function considers information in both coords and bed.for.tts.eval (see vignette)
+#' to identify the fraction of TTSs that match the boundary of the search region.
+#' @param coords bed6 frame with inferred coordinates
+#' @param bed.for.tts.eval bed6 frame with TTS search regions (see get.end.intervals())
+#' @return
+#' A fraction [0,1].
+#' @export
+#' @examples
+#' frac.match = TTS.boundary.match(coords=coords, bed.for.tts.eval=bed.for.tts.eval)
+TTS.boundary.match = function(coords=NULL, bed.for.tts.eval=NULL){
+  gene.ends.plus = coords %>% filter(strand=="+") %>% select(end) %>% data.matrix %>% as.numeric
+  gene.ends.minus = coords %>% filter(strand=="-") %>% select(start) %>% data.matrix %>% as.numeric
+  tts.eval.plus = bed.for.tts.eval %>% filter(strand=="+") %>% select(end) %>% data.matrix %>% as.numeric
+  tts.eval.minus = bed.for.tts.eval %>% filter(strand=="-") %>% select(start) %>% data.matrix %>% as.numeric
+  plus.match = gene.ends.plus[gene.ends.plus %in% tts.eval.plus]
+  minus.match = gene.ends.minus[gene.ends.minus %in% tts.eval.minus]
+  pos = length(plus.match)
+  neg = length(minus.match)
+  frac.match = (pos+neg)/nrow(bed.for.tts.eval)
+  return(frac.match)
+} # TTS.boundry.match
+
+
+
+
+############################################################################################
+## TTS.boundry.clip
+############################################################################################
+
+#' Look at whether TTSs identified at the search boundry were clipped.
+#'
+#' This function considers information in both coords and bed.for.tts.eval (see vignette)
+#' to identify the fractions of search boundary TTSs that were clipped and unclipped.
+#' @param coords bed6 frame with inferred coordinates
+#' @param bed.for.tts.eval bed6 frame with TTS search regions (see get.end.intervals())
+#' @return
+#' A list with two fractions [0,1], frac.clip and frac.noclip,
+#' and a vector of clip distances (clip.tts) for genes with boundary TTSs.
+#' @export
+#' @examples
+#' # look at whether TTSs identified at the search boundry had clipped boundries
+#' frac.bound.clip = TTS.boundry.clip(coords=coords, bed.for.tts.eval=bed.for.tts.eval)
+#' frac.bound.clip$frac.clip
+#' frac.bound.clip$frac.noclip
+#'
+#' # plot didtribution of clip distances for genes with boundary TTSs
+#' hist(frac.bound.clip$clip.tts,main="",xlab="bp clipped for boundry genes")
+#'
+TTS.boundry.clip = function(coords=NULL, bed.for.tts.eval=NULL){
+  clip.tts.plus = merge(coords, bed.for.tts.eval,by="gene") %>%
+    filter(strand.x=="+",end.x==end.y)
+  clip.tts.minus = merge(coords, bed.for.tts.eval,by="gene") %>%
+    filter(strand.x=="-",start.x==start.y)
+  clip.tts = rbind(clip.tts.plus, clip.tts.minus)
+  clip.tts0 = clip.tts %>% filter(xy.x==0)
+  n.boundry.genes = nrow(clip.tts0)
+  frac.bound.noclip = length(which(clip.tts$xy.x == 0)) / nrow(clip.tts)
+  frac.bound.clip = length(which(clip.tts$xy.x > 0)) / nrow(clip.tts)
+  return(list(frac.clip=frac.bound.clip, frac.noclip=frac.bound.noclip, clip.tts=clip.tts$xy.x))
+} # TTS.boundry.clip
+
+
+
+############################################################################################
+## chrom.size.filter
+############################################################################################
+
+#' Filter identified gene coordinates for chromosome sizes.
+#'
+#' First acquire a chrom.sizes file (e.g., http://hgdownload.cse.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes; see vignette).
+#' If any ends are greater than the species chromosome size, reduce the end to the size limit.
+#' Any negative starts will be set to 0.
+#' @param coords bed6 frame with inferred coordinates
+#' @param chrom.sizes two column file with chromosomes and their respective sizes in bp
+#' @return
+#' A list with a bed6 frame with corrected coordinates (bed)
+#' and a log documenting which corrections, if any, were made (log).
+#' @export
+#' @examples
+#' coords.filt = chrom.size.filter(coords=coords, chrom.sizes=chrom.sizes)
+#' head(coords.filt$bed)
+#' coords.filt$log
+#'
+chrom.size.filter = function(coords=NULL, chrom.sizes=NULL){
+  log.fix = c()
+  for(ii in 1:length(unique(coords$chr))){
+    ind.chr = which(coords$chr == unique(coords$chr)[ii])
+    ind.fix = which(coords$end[ind.chr] >
+                      chrom.sizes$size[chrom.sizes$chr == unique(coords$chr)[ii]])
+    if(length(ind.fix) > 0){
+      coords$end[ind.chr][ind.fix] =
+        chrom.sizes$size[chrom.sizes$chr == unique(coords$chr)[ii]]
+      log.fix = c(log.fix, rep(unique(coords$chr)[ii],length(ind.fix)))
+    }
+  }
+  return(list(bed=coords, log=log.fix))
+} # chrom.size.filter
+
+
+
+############################################################################################
+## eval.tss
+############################################################################################
+
+#' Evaluate TSS inference performance
+#'
+#' This function was designed to evaluate the results of out TSS identification analysis.
+#' The user should input inferred and largest interval coordinates (bed1 and bed2, respectively).
+#' We specify a region centered
+#' on the TSS. We obtain read counts in bins that span this window. We sort the genes based on the bin with the
+#' maximal reads and we scale the data to the interval (0,1) for visualization. We compute the distances between the TSS and
+#' the bin with the max reads within the specified window. Note that this function calls
+#' TSS.count.dist() for the TSS distance analysis.
+#' @param bed1 bed frame with inferred TSSs
+#' @param bed2 bed frame with reference TSSs
+#' @param bw.plus plus strand bigWig data
+#' @param bw.minus minus strand bigWig data
+#' @param window region size, centered on the TSS for analysis
+#' @param bp.bin the interval will be separated into adjacent bins of this size
+#' @param fname .pdf file name for output plots (if NULL, no plot)
+#' @return
+#' A list of two lists and a plot (optional, specifiy fname for the plot to be printed to file).
+#' Each list contains three vector elements: raw, scaled, and dist.
+#' $tss.dists.inf cooresponds to the TSS data (bed1) and
+#' $tss.dists.lng cooresponds to the largest interval data (bed2).
+#' All outputs are organized based on TSS position (left-upstream).
+#' raw = binned raw counts. scaled = binned scaled counts (0,1),
+#' with genes sorted based on the distance between the TSS and the maax read interval.
+#' dist = upper bound distances ( min(|dists|) = bp.bin ).
+#' See examples and vignette for more details. The first row of plots includes dirstibutions
+#' of distances between the TSS and the maximal reads for the inferred TSSs (left) and largest interval TSSs (right).
+#' The second row of plots shows the relationship between the distances from TSSs to max reads and the read depth
+#' in the region of read count evaluation (left inferred, right largest interval).
+#' The heatmaps show read profiles (horizontal axis, distances centered in the middlr of the window; vertical axis, distinct genes).
+#' The genes are sorted based on the inferred TSSs to the max reads (left), and the largest interval distances (right) are organized
+#' based on the gene order for the inferred TSSs.
+#' @export
+#' @examples
+#' #
+eval.tss = function(bed1=NULL, bed2=NULL, bw.plus=NULL, bw.minus=NULL,
+                    window=NULL, bp.bin=NULL, fname=NULL){
+
+  # look at read distribution around identified TSSs
+  tss.dists.inf = TSS.count.dist(bed=bed1, bw.plus=bw.plus, bw.minus=bw.minus,
+                             window=window, bp.bin=bp.bin)
+
+
+  # look at read distribution around 'long gene' annotation TSSs
+  tss.dists.lng = TSS.count.dist(bed=bed2, bw.plus=bw.plus, bw.minus=bw.minus,
+                                 window=window, bp.bin=bp.bin)
+
+  if(is.null(fname)==FALSE){
+
+    id.inds = sapply(names(tss.dists.inf$dist),function(x){which(names(tss.dists.lng$dist)==x)})
+    bk = seq(-window/2, window/2, bp.bin)
+    pdf(fname); par(mfrow=c(2,2))
+    hist(tss.dists.inf$dist,main="inferred",xlab="dist from TSS to read max (bp)",
+         breaks=bk,col="black")
+    hist(tss.dists.lng$dist,main="largest",xlab="dist from TSS to read max (bp)",
+         breaks=bk,col="black")
+    plot(rowSums(tss.dists.inf$raw), tss.dists.inf$dist, xlab="window read depth",
+         ylab="dist from TSS to read max (bp)")
+    plot(rowSums(tss.dists.lng$raw), tss.dists.lng$dist, xlab="window read depth",
+         ylab="dist from TSS to read max (bp)")
+    aheatmap(tss.dists.inf$scaled,Colv=NA,Rowv=NA,color=brewer.pal(9,"Greys"))
+    aheatmap(tss.dists.lng$scaled[id.inds,],Colv=NA,Rowv=NA,color=brewer.pal(9,"Greys"))
+    dev.off()
+
+  } # plots
+
+  return(list(tss.dists.inf=tss.dists.inf, tss.dists.lng=tss.dists.lng))
+
+} # eval.tss
+
+
+############################################################################################
 ## TSS.count.dist
 ############################################################################################
 
@@ -973,11 +1730,11 @@ gene.end.plot = function(bed=NULL, gene=NULL, bw.plus=NULL, bw.minus=NULL, bp.bi
 #' on the TSS. We obtain read counts in bins that span this window. We sort the genes based on the bin with the
 #' maximal reads and we scale the data to the interval (0,1) for visualization. We compute the distances between the TSS and
 #' the bin with the max reads within the specified window.
-#' @param bed = bed file for TSS evaluation
+#' @param bed bed frame for TSS evaluation
 #' @param bw.plus = plus strand bigWig data
-#' @param bw.minus = minus strand bigWig data
-#' @param window = region size, centered on the TSS for analysis
-#' @param bp.bin = the interval will be separated into adjacent bins of this size
+#' @param bw.minus minus strand bigWig data
+#' @param window region size, centered on the TSS for analysis
+#' @param bp.bin the interval will be separated into adjacent bins of this size
 #' @return
 #' A list with three vector elements: raw, scaled, and dist.
 #' All outputs are organized based on TSS position (left-upstream).
@@ -986,18 +1743,8 @@ gene.end.plot = function(bed=NULL, gene=NULL, bw.plus=NULL, bw.minus=NULL, bp.bi
 #' See examples and vignette for more details.
 #' @export
 #' @examples
-#' # look at read distribution around identified TSSs
-#' bp.bin = 10
-#' window = 1000
-#' tss.dists = TSS.count.dist(bed=bed.tss.tts, bw.plus=bw.plus, bw.minus=bw.minus,
-#'                            window=window, bp.bin=bp.bin)
-#'
-#' # look at read distribution around 'long gene' annotation TSSs
-#' tss.dists.lng = TSS.count.dist(bed=bed.long[bed.long$gene %in% names(tss.dists$dist),],
-#'                                bw.plus=bw.plus, bw.minus=bw.minus,
-#'                                window=window, bp.bin=bp.bin)
-TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL,
-                          bp.bin=NULL){
+#' see eval.tss()
+TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp.bin=NULL){
 
   # separate genes by strand
   bed.plus = bed %>% filter(strand=="+")

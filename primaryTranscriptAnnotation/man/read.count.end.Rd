@@ -19,13 +19,14 @@ read.count.end(bed = NULL, bw.plus = NULL, bw.minus = NULL,
 \item{add.to.end}{number of base pairs beyond the gene end within which to count reads}
 }
 \value{
-a list with counts and desity.
+A list with counts and desity.
 counts = vector with end of gene counts for each gene.
 density = vector with end of gene densities for each gene.
 }
 \description{
 Select a fraction of the annotated gene end and consider an additional number of base pairs beyond
-the gene end within which to count reads
+the gene end within which to count reads.
+This function works with input that includes one annotation per gene.
 }
 \examples{
 # get read counts and densities at the end of each annotated gene

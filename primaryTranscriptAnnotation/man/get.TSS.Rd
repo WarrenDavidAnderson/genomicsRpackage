@@ -4,47 +4,46 @@
 \alias{get.TSS}
 \title{Select an optimal transcription start site (TSS) for each gene}
 \usage{
-get.TSS(bed = NULL, bw.plus = NULL, bw.minus = NULL,
-  bp.range = NULL, bp.delta = NULL, bp.bin = NULL,
-  delta.tss = NULL, cnt.thresh = NULL)
+get.TSS(bed.in = NULL, bed.out = NULL, bw.plus = NULL,
+  bw.minus = NULL, bp.range = NULL, cnt.thresh = NULL,
+  low.read = FALSE)
 }
 \arguments{
-\item{bed}{bed6 file with comprehensive gene annotations}
+\item{bed.in}{bed6 frame with first exon gene annotations}
+
+\item{bed.out}{bed6 frame for output (same genes as bed.in)}
 
 \item{bw.plus}{plus strand bigWig data}
 
 \item{bw.minus}{minus strand bigWig data}
 
-\item{bp.range}{range to be centered on each gene start for evaluating read counts.
-Note that the value should be divisible by 2}
+\item{bp.range}{range in bp for identifying the exon 1 with the greatest density}
 
-\item{bp.delta}{number of reads to move incrementally - sliding window interval}
+\item{cnt.thresh}{read count number below which the TSS is not evaluated, by default the gene is removed from the analysis max(counts) < cnt.thresh.
+Indicate low.read=TRUE to use the upstream-most TSS for max(counts) < cnt.thresh.}
 
-\item{bp.bin}{bin size for evaluating read counts within a given region}
-
-\item{delta.tss}{amount by which to shift the identied TSS upstream of the identified interval}
-
-\item{cnt.thresh}{read count number below which the TTS is not evaluated}
+\item{low.read}{Logical for whether to pick the upstream-most TSS if max(counts) < cnt.thresh (default FALSE)}
 }
 \value{
-A vector of indentified transcription start site coordinates. Note that strand and chromosome information are not provided here.
+A list with a bed6 frame with inferred TSSs (bed) and a list of problematic genes (issues).
+Problems documented include start > end and start < 0. For start > end,
+the original input corrdinates were retained (bed.out).
+For start < 0, start = 0 was applied.
 }
 \description{
-We set a range around each annotated gene start within which to search for a region of peak read
-density. Such regions of peak read density occur at ’pause sites’ that are typically 20-80 bp from
-the TSS. Within each region around an annotated gene start, we translate a sliding
-window throughout to find the sub-region with maximal density. We determine the window with the
-maximal density out of all regions considered and define the TSS as the upstream boundry of this
-window, minus a shift of a specified amount. The output of this function should be processed using the function apply.TSS.coords().
+We set a range around each annotated exon 1 within which to search for a read density.
+For each gene, we select the upstream coordinate of the first exon with the greatest read density, in the specified region,
+out of all first exons annotated for the given gene.
+The output of this function should be processed using the function apply.TSS.coords().
+Note that input and output genes must be matched.
 }
 \examples{
-# select the TSS for each gene
-bp.range = 1200
-bp.delta = 10
-bp.bin = 50
-delta.tss = 50
+# select the TSS for each gene and incorporate these TSSs into the largest interval coordinates
+bp.range = c(20,120)
 cnt.thresh = 5
-TSS.gene = get.TSS(bed=dat0, bw.plus=bw.plus, bw.minus=bw.minus,
-                  bp.range=bp.range, bp.delta=bp.delta, bp.bin=bp.bin,
-                  delta.tss=delta.tss, cnt.thresh=cnt.thresh)
+bed.out = largest.interval.expr.bed
+bed.in = gencode.firstExon[gencode.firstExon$gene \%in\% bed.out$gene,]
+TSS.gene = get.TSS(bed.in=bed.in, bed.out=bed.out,
+                   bw.plus=bw.plus, bw.minus=bw.minus,
+                   bp.range=bp.range, cnt.thresh=cnt.thresh)
 }

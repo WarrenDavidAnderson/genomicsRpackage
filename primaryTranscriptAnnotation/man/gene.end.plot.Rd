@@ -38,7 +38,7 @@ increasing this parameter results and a smoother curve}
 \item{frac.min}{minimal fraction of gene end region for peal detection}
 }
 \value{
-A single plot is generated
+A single plot is generated.
 }
 \description{
 This function can be used to evaluate the performance of get.gene.end() and get.TTS().

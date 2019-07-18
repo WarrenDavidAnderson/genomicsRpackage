@@ -16,10 +16,9 @@ Note that the TSS genes must be a subset of the genes in the bed6 data.}
 A bed6 file with estimated TSSs incorporated
 }
 \description{
-This function will apply transcription start site (TSS) coordinates to a bed6 frame to incorporate the output from
-get.TSS() into an existing bed frame.
+This function will apply transcription start site (TSS) coordinates to a bed6 frame.
+This function is embedded inside get.TSS().
 }
 \examples{
-# apply TSS coordinates to the expression-filtered long gene annotations
-bed.long.filtered.tss = apply.TSS.coords(bed=bed.long.filtered, tss=TSS.gene)
+out = apply.TSS.coords(bed=bed.out, tss=tss)
 }

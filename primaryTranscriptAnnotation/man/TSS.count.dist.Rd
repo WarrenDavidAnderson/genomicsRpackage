@@ -8,15 +8,15 @@ TSS.count.dist(bed = NULL, bw.plus = NULL, bw.minus = NULL,
   window = NULL, bp.bin = NULL)
 }
 \arguments{
-\item{bed}{= bed file for TSS evaluation}
+\item{bed}{bed frame for TSS evaluation}
 
 \item{bw.plus}{= plus strand bigWig data}
 
-\item{bw.minus}{= minus strand bigWig data}
+\item{bw.minus}{minus strand bigWig data}
 
-\item{window}{= region size, centered on the TSS for analysis}
+\item{window}{region size, centered on the TSS for analysis}
 
-\item{bp.bin}{= the interval will be separated into adjacent bins of this size}
+\item{bp.bin}{the interval will be separated into adjacent bins of this size}
 }
 \value{
 A list with three vector elements: raw, scaled, and dist.
@@ -32,14 +32,5 @@ maximal reads and we scale the data to the interval (0,1) for visualization. We 
 the bin with the max reads within the specified window.
 }
 \examples{
-# look at read distribution around identified TSSs
-bp.bin = 10
-window = 1000
-tss.dists = TSS.count.dist(bed=bed.tss.tts, bw.plus=bw.plus, bw.minus=bw.minus,
-                           window=window, bp.bin=bp.bin)
-
-# look at read distribution around 'long gene' annotation TSSs
-tss.dists.lng = TSS.count.dist(bed=bed.long[bed.long$gene \%in\% names(tss.dists$dist),],
-                               bw.plus=bw.plus, bw.minus=bw.minus,
-                               window=window, bp.bin=bp.bin)
+see eval.tss()
 }

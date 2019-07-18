@@ -17,7 +17,7 @@ get.end.intervals(bed = NULL, add.to.end = NULL, fraction.end = NULL,
 \item{dist.from.start}{the maximal allowable distance between the end of one gene and the start of the next}
 }
 \value{
-A bed6 for gene end evaluation
+A bed6 for gene end evaluation.
 }
 \description{
 We define regions at the gene ends to examine read counts for TTS identification.

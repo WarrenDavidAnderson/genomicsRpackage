@@ -1,4 +1,157 @@
 
+
+############################################################################################
+## tu.gene.overlaps
+############################################################################################
+
+#' Assign identifiers to TUs with single gene overlaps
+#'
+#' Summarize gene/tu counts after intersecting the respective annotations.
+#' See the vignette for analysis details and instructions.
+#' @param hmm.ann.overlap frame with coordinates from intersecting tus with inferred gene annotations
+#' @return
+#' A list of metrics inclusing the total number of TUs (n.tus),
+#' the number of TUs without gene overlaps (n.tu.no.gene.overlap),
+#' the number of TUs with overlapping genes (n.tu.overlap.gene),
+#' the number of genes with overlapping TUs (n.gene.overlap.tu),
+#' the number of TUs overlapping single genes (n.tu.overlap.single.genes),
+#' and the number of TUs with multiple gene overlaps (n.tu.overlap.multiple.genes).
+#' Note that n.tu.overlap.gene = n.tu.overlap.single.genes + n.tu.overlap.multiple.genes.
+#' @export
+#' @examples
+#' tg.overlaps = tu.gene.overlaps(hmm.ann.overlap=hmm.ann.overlap)
+#'
+tu.gene.overlaps = function(hmm.ann.overlap=NULL){
+
+  # total number of TUs
+  n.tus = nrow(unique(hmm.ann.overlap[,c(1:3,6)]))
+
+  # identify TUs with no gene overlaps at all
+  isolated.tu = hmm.ann.overlap %>% filter(overlap == 0)
+  n.tu.no.gene.overlap = nrow(unique(isolated.tu[,c(1:3,6)]))
+
+  # identify TUs with overlapping genes
+  overlap.tu = hmm.ann.overlap %>% filter(overlap != 0)
+  n.tu.overlap.gene = nrow(unique(overlap.tu[,c(1:3,6)]))
+
+  # number of genes overlapping with TUs
+  n.gene.overlap.tu = length(unique(hmm.ann.overlap$ann.gene))-1
+
+  # TUs with multi gene overlaps
+  dup.hmm.rows = overlap.tu[duplicated(overlap.tu[,c(1:3,6)]) |
+                              duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
+  n.tu.overlap.multiple.genes = nrow(unique(dup.hmm.rows[,c(1:3,6)]))
+
+  # identify TUs overlapping single genes
+  sing.hmm.rows = overlap.tu[!duplicated(overlap.tu[,c(1:3,6)]) &
+                               !duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
+  n.tu.overlap.single.genes = nrow(unique(sing.hmm.rows[,c(1:3,6)]))
+
+  out = list(n.tus=n.tus,
+             n.tu.no.gene.overlap=n.tu.no.gene.overlap,
+             n.tu.overlap.gene = n.tu.overlap.gene,
+             n.gene.overlap.tu=n.gene.overlap.tu,
+             n.tu.overlap.single.genes=n.tu.overlap.single.genes,
+             n.tu.overlap.multiple.genes=n.tu.overlap.multiple.genes)
+  return(out)
+} # tu.gene.overlaps
+
+
+
+############################################################################################
+## get.tu.gene.coords
+############################################################################################
+
+#' Integrate inferred gene coordinates with transcriptional units
+#'
+#' Here we annotate all of the regions in the TU frame based on overlaps with genes.
+#' The analysis details are handles by single.overlaps() and multi.overlaps().
+#' @param hmm.ann.overlap frame with coordinates from intersecting tus with inferred gene annotations
+#' @param tss.thresh number of bp a TU beginning can be off from an annotation in
+#' order to be assigned that annotation
+#' @param delta.tss max distance between an upstream gene end and downstream gene start
+#' @param delta.tts max difference distance between and annotated gene end and the start
+#' of a downstream gene before an intermediate TU id is assigned
+#' @return
+#' A bed frame with gene/tu coordinates.
+#' @export
+#' @examples
+#' tss.thresh = 200
+#' delta.tss = 50
+#' delta.tts = 1000
+#' res = get.tu.gene.coords(hmm.ann.overlap=hmm.ann.overlap,
+#'                          tss.thresh=tss.thresh,
+#'                          delta.tss=delta.tss,
+#'                          delta.tts=delta.tts)
+get.tu.gene.coords = function(hmm.ann.overlap=NULL, tss.thresh=NULL,
+                              delta.tss=NULL, delta.tts=NULL){
+
+  # identify all TUs overlapping genes
+  overlap.tu = hmm.ann.overlap %>% filter(overlap != 0)
+
+  # TUs with multi gene overlaps
+  dup.hmm.rows = overlap.tu[duplicated(overlap.tu[,c(1:3,6)]) |
+                              duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
+
+  # identify TUs overlapping single genes
+  sing.hmm.rows = overlap.tu[!duplicated(overlap.tu[,c(1:3,6)]) &
+                               !duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
+
+  # TUs with multi gene overlaps
+  dup.hmm.rows = overlap.tu[duplicated(overlap.tu[,c(1:3,6)]) |
+                              duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
+
+  # assign identifiers for single overlaps
+  overlaps = sing.hmm.rows
+  names(overlaps)[1:6] = c("infr.chr","infr.start","infr.end",
+                           "infr.gene","infr.xy","infr.strand")
+  class1234 = single.overlaps(overlaps=overlaps, tss.thresh=tss.thresh,
+                              delta.tss=delta.tss, delta.tts=delta.tts)
+  new.ann.sing = class1234$bed
+
+  # dissociation errors are reflected in duplicate entries for single overlap genes
+  disso.tu = new.ann.sing[duplicated(new.ann.sing[,c(1,2,3,4,6)]) |
+                            duplicated(new.ann.sing[,c(1,2,3,4,6)], fromLast=TRUE),]
+  disso.tu  = disso.tu[with(disso.tu, order(chr, start, end)),]
+  diss.genes = unique(c(disso.tu$id))
+  n.genes.dissoc.error.sing = length(diss.genes) # 54
+  new.ann.sing = new.ann.sing[!duplicated(new.ann.sing[,
+                            c('chr','start','end','id','strand')]),]
+  new.ann.sing = new.ann.sing[!duplicated(new.ann.sing[,c('id')]),]
+  n.tu.sing = nrow(new.ann.sing) # 5813
+
+  # assign identifiers for multiple overlaps
+  dup.full = dup.hmm.rows
+  names(dup.full)[1:6] = c("infr.chr","infr.start","infr.end",
+                           "infr.gene","infr.xy","infr.strand")
+  class5678 = multi.overlaps(overlaps=dup.full, tss.thresh=tss.thresh,
+                             delta.tss=delta.tss, delta.tts=delta.tts)
+  new.ann.mult = class5678$bed
+
+  # process multi overlap data
+  disso.tu = new.ann.mult[duplicated(new.ann.mult[,1:4]) |
+                            duplicated(new.ann.mult[,1:4], fromLast=TRUE),]
+  disso.tu  = disso.tu[with(disso.tu, order(chr, start, end)),]
+  n.genes.dissoc.error.mult = length(unique(disso.tu$id)) # 27
+  new.ann.mult = new.ann.mult[!duplicated(new.ann.mult[,
+                                                       c('chr','start','end','id','strand')]),]
+  new.ann.mult = new.ann.mult[!duplicated(new.ann.mult[,c('id')]),]
+
+  # aggregate annotated and unannotated TUs
+  out.overlap = rbind(new.ann.sing, new.ann.mult)
+  out.nooverlap = hmm.ann.overlap[which(hmm.ann.overlap$overlap == 0),1:6]
+  out.nooverlap[,4] = paste0("unann_",c(1:nrow(out.nooverlap)))
+  names(out.nooverlap) = names(out.overlap)
+  out.all = rbind(out.overlap, out.nooverlap)
+  out.all = out.all[!duplicated(out.all$id),]
+
+  # output results
+  return(out.all)
+
+} # get.tu.gene.coords
+
+
+
 ############################################################################################
 ## single.overlaps
 ############################################################################################
@@ -289,6 +442,7 @@ multi.overlaps = function(overlaps=NULL, tss.thresh=NULL,
                           delta.tss=NULL, delta.tts=NULL){
 
   # identify unique TUs and set data objects
+  dup.full = overlaps
   dup.uniq = unique(overlaps[,c(1:3,6)])
   class5.counts = class6.counts = class7.counts = class8.counts = 0
   class5 = class6 = class7 = class8 = c()

@@ -7,15 +7,14 @@
 gene.overlaps(bed = NULL)
 }
 \arguments{
-\item{bed}{bed6 file with processed gene annotations}
+\item{bed}{bed6 frame with processed gene annotations}
 }
 \value{
 A list with has.start.inside and is.a.start.inside. has.start.inside = bed6 file that documents genes in which there are starts
-        of other genes. is.a.start.inside = bed6 file that documents genes that start inside other
-        genes.
+of other genes. is.a.start.inside = bed6 file that documents genes that start inside other genes.
 }
 \description{
-This function identifies gene overlaps that do not involve identical coordinates.
+This function identifies gene overlapss.
 }
 \examples{
 # run overlap analysis

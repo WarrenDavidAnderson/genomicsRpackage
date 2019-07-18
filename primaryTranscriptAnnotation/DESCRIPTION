@@ -12,4 +12,6 @@ RoxygenNote: 6.1.1
 Imports:
 	bigWig,
 	pracma,
-	dplyr
+	dplyr,
+	RColorBrewer,
+	NMF
