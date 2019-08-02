@@ -7,9 +7,9 @@
 chrom.size.filter(coords = NULL, chrom.sizes = NULL)
 }
 \arguments{
-\item{coords}{bed6 frame with inferred coordinates}
+\item{coords}{A bed6 frame with inferred coordinates (from get.TTS())}
 
-\item{chrom.sizes}{two column file with chromosomes and their respective sizes in bp}
+\item{chrom.sizes}{A two column frame with chromosomes and their respective sizes in bp}
 }
 \value{
 A list with a bed6 frame with corrected coordinates (bed)

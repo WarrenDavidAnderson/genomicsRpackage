@@ -7,7 +7,7 @@
 tu.gene.overlaps(hmm.ann.overlap = NULL)
 }
 \arguments{
-\item{hmm.ann.overlap}{frame with coordinates from intersecting tus with inferred gene annotations}
+\item{hmm.ann.overlap}{A frame with coordinates from intersecting tus with inferred gene annotations}
 }
 \value{
 A list of metrics inclusing the total number of TUs (n.tus),

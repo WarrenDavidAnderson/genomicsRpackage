@@ -9,19 +9,19 @@ TTS.count.dist(bed = NULL, bw.plus = NULL, bw.minus = NULL,
   ratio.region = NULL)
 }
 \arguments{
-\item{bed}{bed frame for TSS evaluation}
+\item{bed}{A bed frame for TSS evaluation}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{window}{region size, centered on the TTS for analysis}
+\item{window}{Region size, centered on the TTS for analysis}
 
-\item{bp.bin}{the interval will be separated into adjacent bins of this size}
+\item{bp.bin}{The interval will be separated into adjacent bins of this size}
 
-\item{frac.max}{fraction of cumulative distribution for sorting entries are sorted by indices min( cumsum(x)/sum(x) ) < frac.max}
+\item{frac.max}{Fraction of cumulative distribution for sorting entries are sorted by indices min( cumsum(x)/sum(x) ) < frac.max}
 
-\item{ratio.region}{number of bp on either side of the TTS to evaluate the ratio entries}
+\item{ratio.region}{Number of bp on either side of the TTS to evaluate the ratio entries}
 }
 \value{
 A list with three elements: raw, scaled, and ratio.
@@ -42,7 +42,7 @@ window = 1000
 bp.bin = 10
 frac.max = 0.8
 ratio.region = 300
-tts.dists = TTS.count.dist(bed=bed.tss.tts, bw.plus=bw.plus, bw.minus=bw.minus,
+tts.dists = TTS.count.dist(bed=coords, bw.plus=bw.plus, bw.minus=bw.minus,
      window=window, bp.bin=bp.bin, frac.max=frac.max,
      ratio.region=ratio.region)
 }

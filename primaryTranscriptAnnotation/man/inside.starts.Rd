@@ -7,7 +7,7 @@
 inside.starts(vec = NULL)
 }
 \arguments{
-\item{vec}{input the xy column from the $is.a.start.inside output of gene.overlaps()}
+\item{vec}{Input the xy column from the $is.a.start.inside output of gene.overlaps()}
 }
 \value{
 A vector of genes within which multiple starts are observed.
@@ -15,7 +15,7 @@ A vector of genes within which multiple starts are observed.
 \description{
 This function identifies genes within which >1 start is observed.
 That is, relatively 'large' genes in which 2 or more genes originate.
-Data generated from gene.overlaps() serve as input to this function.
+Data generated from gene.overlaps() serve as an input to this function.
 }
 \examples{
 overlap.data = gene.overlaps( bed = TSS.gene.filtered1 )

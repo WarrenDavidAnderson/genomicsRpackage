@@ -1,6 +1,70 @@
 
 
 ############################################################################################
+## assess.final.coords
+############################################################################################
+
+#' Function to assessing the final identified coordinates
+#'
+#' This function compares the final coordinates to coordinates to inferred coordinates,
+#' tu.gene.overlaps() versus get.TTS().
+#' @param bed1 A reference bed frame from get TTS()
+#' @param bed2 A final bed frame from tu.gene.overlaps()
+#' @return
+#' A list of metrics: dtss is a vector of tss differences,
+#' dtts is a vector of tts differences,
+#' dtss.mean is the average tss differences,
+#' dtss.uneq is the number of tss's that are not identical
+#' dtts.mean is the mean for tts differences,
+#' and dtts.uneq is the number of non-identical tts's
+#' @export
+#' @examples
+#' # evaluate the final annotation
+#' metrics = assess.final.coords(bed1=bed.tss.tts, bed2=res)
+#' metrics$dtss.uneq
+#' metrics$dtts.uneq
+#' 
+assess.final.coords= function(bed1=NULL, bed2=NULL){
+  
+  # synergize annotations
+  bed2 = bed2[bed2$id %in% bed1$gene,]
+  inds = sapply(bed1$gene,function(x){which(bed2$id==x)}) %>% unlist
+  bed2 = bed2[inds,]
+  if( all(bed1$gene == bed2$id) == FALSE ){stop("bed1 and bed2 genes are unmatched")}
+  
+  # separate by strand
+  ind.plus = which(bed1$strand=="+")
+  ind.minus = which(bed1$strand=="-")
+  bed1.plus = bed1[ind.plus,]
+  bed1.minus = bed1[ind.minus,]
+  bed2.plus = bed2[ind.plus,]
+  bed2.minus = bed2[ind.minus,]
+  
+  # get TSS differences, upstream positive
+  dtss.plus = bed2.plus$start - bed1.plus$start
+  dtss.minus = bed1.minus$end - bed2.minus$end
+  dtss = c(dtss.plus, dtss.minus)
+  names(dtss) = c(bed2.plus$id, bed2.minus$id)
+  dtss.mean = mean(dtss)
+  dtss.uneq = length(which(dtss != 0))
+  
+  # get TTS differences, upstream positive
+  dtts.plus = bed2.plus$end - bed1.plus$end
+  dtts.minus = bed1.minus$start - bed2.minus$start
+  dtts = c(dtts.plus, dtts.minus)
+  names(dtts) = c(bed2.plus$id, bed2.minus$id)
+  dtts.mean = mean(dtts)
+  dtts.uneq = length(which(dtts != 0))
+  
+  # generate output
+  out = list(dtss=dtss, dtts=dtts, dtss.mean=dtss.mean, dtss.uneq=dtss.uneq, dtts.mean=dtts.mean, dtts.uneq=dtts.uneq)
+  return(out)
+  
+} # assess.final.coords
+  
+  
+  
+############################################################################################
 ## tu.gene.overlaps
 ############################################################################################
 
@@ -8,7 +72,7 @@
 #'
 #' Summarize gene/tu counts after intersecting the respective annotations.
 #' See the vignette for analysis details and instructions.
-#' @param hmm.ann.overlap frame with coordinates from intersecting tus with inferred gene annotations
+#' @param hmm.ann.overlap A frame with coordinates from intersecting tus with inferred gene annotations
 #' @return
 #' A list of metrics inclusing the total number of TUs (n.tus),
 #' the number of TUs without gene overlaps (n.tu.no.gene.overlap),
@@ -65,12 +129,15 @@ tu.gene.overlaps = function(hmm.ann.overlap=NULL){
 #' Integrate inferred gene coordinates with transcriptional units
 #'
 #' Here we annotate all of the regions in the TU frame based on overlaps with genes.
-#' The analysis details are handles by single.overlaps() and multi.overlaps().
-#' @param hmm.ann.overlap frame with coordinates from intersecting tus with inferred gene annotations
-#' @param tss.thresh number of bp a TU beginning can be off from an annotation in
+#' The analysis details are handled by single.overlaps() and multi.overlaps().
+#' See the vignette for formatting the inputs to this function.
+#' @param hmm.ann.overlap A frame with coordinates from intersecting tus with inferred gene annotations
+#' @param gene.frame A bed6 frame with the full set of inferred annotations, 
+#' the input to the bedtools overlap analysis
+#' @param tss.thresh Number of bp a TU beginning can be off from an annotation in
 #' order to be assigned that annotation
-#' @param delta.tss max distance between an upstream gene end and downstream gene start
-#' @param delta.tts max difference distance between and annotated gene end and the start
+#' @param delta.tss Max distance between an upstream gene end and downstream gene start
+#' @param delta.tts Max distance between and annotated gene end and the start
 #' of a downstream gene before an intermediate TU id is assigned
 #' @return
 #' A bed frame with gene/tu coordinates.
@@ -83,21 +150,18 @@ tu.gene.overlaps = function(hmm.ann.overlap=NULL){
 #'                          tss.thresh=tss.thresh,
 #'                          delta.tss=delta.tss,
 #'                          delta.tts=delta.tts)
-get.tu.gene.coords = function(hmm.ann.overlap=NULL, tss.thresh=NULL,
+get.tu.gene.coords = function(hmm.ann.overlap=NULL, gene.frame=NULL,
+                              tss.thresh=NULL,
                               delta.tss=NULL, delta.tts=NULL){
 
   # identify all TUs overlapping genes
   overlap.tu = hmm.ann.overlap %>% filter(overlap != 0)
-
-  # TUs with multi gene overlaps
-  dup.hmm.rows = overlap.tu[duplicated(overlap.tu[,c(1:3,6)]) |
-                              duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
-
+  
   # identify TUs overlapping single genes
   sing.hmm.rows = overlap.tu[!duplicated(overlap.tu[,c(1:3,6)]) &
                                !duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
 
-  # TUs with multi gene overlaps
+  # identify TUs with multi gene overlaps
   dup.hmm.rows = overlap.tu[duplicated(overlap.tu[,c(1:3,6)]) |
                               duplicated(overlap.tu[,c(1:3,6)], fromLast=TRUE),]
 
@@ -114,11 +178,11 @@ get.tu.gene.coords = function(hmm.ann.overlap=NULL, tss.thresh=NULL,
                             duplicated(new.ann.sing[,c(1,2,3,4,6)], fromLast=TRUE),]
   disso.tu  = disso.tu[with(disso.tu, order(chr, start, end)),]
   diss.genes = unique(c(disso.tu$id))
-  n.genes.dissoc.error.sing = length(diss.genes) # 54
+  n.genes.dissoc.error.sing = length(diss.genes) 
   new.ann.sing = new.ann.sing[!duplicated(new.ann.sing[,
                             c('chr','start','end','id','strand')]),]
   new.ann.sing = new.ann.sing[!duplicated(new.ann.sing[,c('id')]),]
-  n.tu.sing = nrow(new.ann.sing) # 5813
+  n.tu.sing = nrow(new.ann.sing) 
 
   # assign identifiers for multiple overlaps
   dup.full = dup.hmm.rows
@@ -128,7 +192,7 @@ get.tu.gene.coords = function(hmm.ann.overlap=NULL, tss.thresh=NULL,
                              delta.tss=delta.tss, delta.tts=delta.tts)
   new.ann.mult = class5678$bed
 
-  # process multi overlap data
+  # process multi overlap data, address dissociation errors
   disso.tu = new.ann.mult[duplicated(new.ann.mult[,1:4]) |
                             duplicated(new.ann.mult[,1:4], fromLast=TRUE),]
   disso.tu  = disso.tu[with(disso.tu, order(chr, start, end)),]
@@ -136,14 +200,23 @@ get.tu.gene.coords = function(hmm.ann.overlap=NULL, tss.thresh=NULL,
   new.ann.mult = new.ann.mult[!duplicated(new.ann.mult[,
                                                        c('chr','start','end','id','strand')]),]
   new.ann.mult = new.ann.mult[!duplicated(new.ann.mult[,c('id')]),]
+  
+  # identify genes without TU overlaps (class -1)
+  other.genes = gene.frame[!(gene.frame$gene %in% hmm.ann.overlap$ann.gene),]
+  names(other.genes) = names(new.ann.sing)
+  other.genes$class = -1 
 
   # aggregate annotated and unannotated TUs
-  out.overlap = rbind(new.ann.sing, new.ann.mult)
+  # remove duplicates due to both single and multi overlaps (remaining dissociation errors)
+  # class 0 for un-annotated TUs
+  out.overlap = rbind(new.ann.sing, new.ann.mult, other.genes)
   out.nooverlap = hmm.ann.overlap[which(hmm.ann.overlap$overlap == 0),1:6]
   out.nooverlap[,4] = paste0("unann_",c(1:nrow(out.nooverlap)))
+  out.nooverlap[,5] = 0
   names(out.nooverlap) = names(out.overlap)
   out.all = rbind(out.overlap, out.nooverlap)
   out.all = out.all[!duplicated(out.all$id),]
+  out.all[,2:3] = apply(out.all[,2:3],2,function(x){data.matrix(x)%>%as.numeric})
 
   # output results
   return(out.all)
@@ -162,12 +235,12 @@ get.tu.gene.coords = function(hmm.ann.overlap=NULL, tss.thresh=NULL,
 #' Trusted gene annotations are considered in terms of their degree of overlap with
 #' TUs identified in an unbiased manner. Marginal regions of TUs outside of gene overlaps
 #' are given generic identifiers.
-#' @param overlaps frame with bed intersect of inferred TUs (col1-6)
+#' @param overlaps A frame with bed intersect of inferred TUs (col1-6)
 #' with annotated TUs (col7-12) and overlaping bps (col14)
-#' @param tss.thresh = number of bp a TU beginning can be off from an annotation in
+#' @param tss.thresh The number of bp that a TU beginning can be off from an annotation in
 #' order to be assigned that annotation
-#' @param delta.tss max distance between an upstream gene end and downstream gene start
-#' @param delta.tts max difference distance between and annotated gene end and the start
+#' @param delta.tss Max distance between an upstream gene end and downstream gene start
+#' @param delta.tts Max difference distance between and annotated gene end and the start
 #' of a downstream gene before an intermediate TU id is assigned
 #' @return
 #' A list with bed data (bed) and counts for each class (cnt1-4).
@@ -200,20 +273,21 @@ single.overlaps = function(overlaps=NULL, tss.thresh=NULL,
 
 
     # class 1 - the annotation is within the TU
-    if(overlaps$infr.start[ii] < overlaps$ann.start[ii] &
-       overlaps$infr.end[ii] > overlaps$ann.end[ii]){
+    if(overlaps$infr.start[ii] <= overlaps$ann.start[ii] &
+       overlaps$infr.end[ii] >= overlaps$ann.end[ii]){
       fr = overlaps[ii,]
       new = single.overlap.assign(fr=fr, tss.thresh=tss.thresh,
                                   delta.tss=delta.tss,
                                   delta.tts=delta.tts, cl=1)
+      if(length(which(new$start == 83548299))==1){break}
       class1 = rbind(class1, new)
       class1.counts = class1.counts + 1
     } # class 1
 
 
     # class 2 - the TU is within the annotation
-    if(overlaps$infr.start[ii] > overlaps$ann.start[ii] &
-       overlaps$infr.end[ii] < overlaps$ann.end[ii]){
+    if(overlaps$infr.start[ii] >= overlaps$ann.start[ii] &
+       overlaps$infr.end[ii] <= overlaps$ann.end[ii]){
       fr = overlaps[ii,]
       fr$infr.start = fr$ann.start
       fr$infr.end = fr$ann.end
@@ -225,9 +299,9 @@ single.overlaps = function(overlaps=NULL, tss.thresh=NULL,
     } # class 2
 
 
-    # class 3 - TU upstream overlap
-    if(overlaps$infr.start[ii] < overlaps$ann.start[ii] &
-       overlaps$infr.end[ii] < overlaps$ann.end[ii] &
+    # class 3 plus - TU upstream overlap
+    if(overlaps$infr.start[ii] <= overlaps$ann.start[ii] &
+       overlaps$infr.end[ii] <= overlaps$ann.end[ii] &
        overlaps$infr.strand[ii] == "+"){
       fr = overlaps[ii,]
       fr$infr.end = fr$ann.end
@@ -237,8 +311,10 @@ single.overlaps = function(overlaps=NULL, tss.thresh=NULL,
       class3 = rbind(class3, new)
       class3.counts = class3.counts + 1
     } # class 3 - plus
-    if(overlaps$infr.start[ii] > overlaps$ann.start[ii] &
-       overlaps$infr.end[ii] > overlaps$ann.end[ii] &
+    
+    # class 3 minus - TU upstream overlap
+    if(overlaps$infr.start[ii] >= overlaps$ann.start[ii] &
+       overlaps$infr.end[ii] >= overlaps$ann.end[ii] &
        overlaps$infr.strand[ii] == "-"){
       fr = overlaps[ii,]
       fr$infr.start = fr$ann.start
@@ -250,12 +326,11 @@ single.overlaps = function(overlaps=NULL, tss.thresh=NULL,
     } # class 3 - minus
 
 
-    # class 4 - TU downstream overlap
-    if(overlaps$infr.start[ii] > overlaps$ann.start[ii] &
-       overlaps$infr.end[ii] > overlaps$ann.end[ii] &
+    # class 4 plus - TU downstream overlap
+    if(overlaps$infr.start[ii] >= overlaps$ann.start[ii] &
+       overlaps$infr.end[ii] >= overlaps$ann.end[ii] &
        overlaps$infr.strand[ii] == "+"){
       fr = overlaps[ii,]
-      #if(fr$infr.strand=="+"){stop(ii)}
       fr$infr.start = fr$ann.start
       new = single.overlap.assign(fr=fr, tss.thresh=tss.thresh,
                                   delta.tss=delta.tss,
@@ -263,11 +338,12 @@ single.overlaps = function(overlaps=NULL, tss.thresh=NULL,
       class4 = rbind(class4, new)
       class4.counts = class4.counts + 1
     } # class 4 - plus
-    if(overlaps$infr.start[ii] < overlaps$ann.start[ii] &
-       overlaps$infr.end[ii] < overlaps$ann.end[ii] &
+    
+    # class 4 minus - TU downstream overlap
+    if(overlaps$infr.start[ii] <= overlaps$ann.start[ii] &
+       overlaps$infr.end[ii] <= overlaps$ann.end[ii] &
        overlaps$infr.strand[ii] == "-"){
       fr = overlaps[ii,]
-      #if(fr$infr.strand=="-"){stop(ii)}
       fr$infr.end = fr$ann.end
       new = single.overlap.assign(fr=fr, tss.thresh=tss.thresh,
                                   delta.tss=delta.tss,
@@ -305,12 +381,11 @@ single.overlaps = function(overlaps=NULL, tss.thresh=NULL,
 #'
 #' This function is called inside of single.overlaps()
 #' and is not recommended to be used on its own.
-#' @param fr frame with full bedtools overlap data for a class1
-#' TU with multiple internal annotations
-#' @param tss.thresh number of bp a TU beginning can be off
+#' @param fr A frame with full bedtools overlap data for a class1
+#' @param tss.thresh Number of bp a TU beginning can be off
 #' from an annotation in order to be assigned that annotation
-#' @param delta.tss max distance between an upstream gene end and downstream gene start
-#' @param cl multi-overlap class
+#' @param delta.tss Max distance between an upstream gene end and downstream gene start
+#' @param cl Overlap class
 #' @return
 #' A bed data frame with chr, start, end, id, class, and strand.
 #' Note that id = 0 for regions of large TUs that do no match input annotations.
@@ -400,6 +475,9 @@ single.overlap.assign = function(fr=NULL, tss.thresh=NULL, delta.tss=NULL,
   } # minus
 
   # return data:
+  out[,2:3] = apply(out[,2:3],2,function(x){data.matrix(x)%>%as.numeric})
+  ind.rem = which(out$end < out$start)
+  if(length(ind.rem)>0){out = out[-ind.rem,]}
   return(out)
 
 } # single.overlap.assign
@@ -415,10 +493,10 @@ single.overlap.assign = function(fr=NULL, tss.thresh=NULL, delta.tss=NULL,
 #' Trusted gene annotations are considered in terms of their degree of overlap with
 #' TUs identified in an unbiased manner. Marginal regions of TUs outside of gene overlaps
 #' are given generic identifiers.
-#' @param overlaps frame with bed intersect of inferred TUs (col1-6) with annotated TUs (col7-12) and overlaping bps (col14)
-#' @param tss.thresh number of bp a TU beginning can be off from an annotation in order to be assigned that annotation
-#' @param delta.tss max distance between an upstream gene end and downstream gene start
-#' @param delta.tts max difference distance between and annotated gene end and the start of a downstream gene before an intermediate TU id is assigned
+#' @param overlaps A frame with bed intersect of inferred TUs (col1-6) with annotated TUs (col7-12) and overlaping bps (col14)
+#' @param tss.thresh Number of bp a TU beginning can be off from an annotation in order to be assigned that annotation
+#' @param delta.tss Max distance between an upstream gene end and downstream gene start
+#' @param delta.tts Max difference distance between and annotated gene end and the start of a downstream gene before an intermediate TU id is assigned
 #' @return
 #' A list with bed data (bed) and counts for each class (cnt5-8).
 #' bed = data with chr, start, end, id, class, and strand.
@@ -461,8 +539,8 @@ multi.overlaps = function(overlaps=NULL, tss.thresh=NULL,
     gene.range = c(min(fr$ann.start), max(fr$ann.end))
 
     # class 5 - all annotations internal
-    if(gene.range[1] > dup.uniq$infr.start[ii] &
-       gene.range[2] < dup.uniq$infr.end[ii]){
+    if(gene.range[1] >= dup.uniq$infr.start[ii] &
+       gene.range[2] <= dup.uniq$infr.end[ii]){
       new = multi.overlap.assign(fr=fr, tss.thresh=tss.thresh,
                                  delta.tss=delta.tss,
                                  delta.tts=delta.tts, cl=5)
@@ -471,11 +549,11 @@ multi.overlaps = function(overlaps=NULL, tss.thresh=NULL,
     } # class 5
 
     # class 6 - upstream overhang
-    if( (gene.range[1] < dup.uniq$infr.start[ii] &
-         gene.range[2] < dup.uniq$infr.end[ii] &
+    if( (gene.range[1] <= dup.uniq$infr.start[ii] &
+         gene.range[2] <= dup.uniq$infr.end[ii] &
          dup.uniq$infr.strand[ii]=="+") |
-        (gene.range[2] > dup.uniq$infr.end[ii] &
-         gene.range[1] > dup.uniq$infr.start[ii] &
+        (gene.range[2] >= dup.uniq$infr.end[ii] &
+         gene.range[1] >= dup.uniq$infr.start[ii] &
          dup.uniq$infr.strand[ii]=="-") ){
       if(dup.uniq$infr.strand[ii]=="+"){
         ind.upstream = which(fr$ann.start == min(fr$ann.start))
@@ -493,11 +571,11 @@ multi.overlaps = function(overlaps=NULL, tss.thresh=NULL,
     } # class6
 
     # class 7 - downstream overhang
-    if( (gene.range[1] > dup.uniq$infr.start[ii] &
-         gene.range[2] > dup.uniq$infr.end[ii] &
+    if( (gene.range[1] >= dup.uniq$infr.start[ii] &
+         gene.range[2] >= dup.uniq$infr.end[ii] &
          dup.uniq$infr.strand[ii]=="+") |
-        (gene.range[2] < dup.uniq$infr.end[ii] &
-         gene.range[1] < dup.uniq$infr.start[ii] &
+        (gene.range[2] <= dup.uniq$infr.end[ii] &
+         gene.range[1] <= dup.uniq$infr.start[ii] &
          dup.uniq$infr.strand[ii]=="-") ){
       if(dup.uniq$infr.strand[ii]=="+"){
         ind.dnstream = which(fr$ann.end == max(fr$ann.end))
@@ -516,8 +594,8 @@ multi.overlaps = function(overlaps=NULL, tss.thresh=NULL,
     } # class 7
 
     # class 8 - up and downstream overhangs
-    if( gene.range[1] < dup.uniq$infr.start[ii] &
-        gene.range[2] > dup.uniq$infr.end[ii] ){
+    if( gene.range[1] <= dup.uniq$infr.start[ii] &
+        gene.range[2] >= dup.uniq$infr.end[ii] ){
       fr$infr.start = fr$ann.start[ which(fr$ann.start == min(fr$ann.start)) ]
       fr$infr.end = fr$ann.end[ which(fr$ann.end == max(fr$ann.end)) ]
       new = multi.overlap.assign(fr=fr, tss.thresh=tss.thresh,
@@ -556,15 +634,15 @@ multi.overlaps = function(overlaps=NULL, tss.thresh=NULL,
 #'
 #' This function is called inside of multiple.overlaps()
 #' and is not recommended to be used on its own.
-#' @param fr = frame with full bedtools overlap data for a class5 TU
+#' @param fr A frame with full bedtools overlap data for a class5 TU
 #' with multiple internal annotations
-#' @param tss.thresh = number of bp a TU beginning can be off
+#' @param tss.thresh Number of bp a TU beginning can be off
 #' from an annotation in order to be assigned that annotation
-#' @param delta.tss = max distance between an upstream gene end and
+#' @param delta.tss Max distance between an upstream gene end and
 #' downstream gene start cl = multi-overlap class
-#' @param delta.tts max difference distance between and annotated gene
+#' @param delta.tts Max difference distance between and annotated gene
 #' end and the start of a downstream gene before an intermediate TU id is assigned
-#' @param cl multi-overlap class
+#' @param cl Multi-overlap class
 #' @return
 #' A bed data with chr, start, end, id, class, and strand.
 #' Note that id = 0 for regions of large TUs that do no match input annotations.
@@ -704,6 +782,9 @@ multi.overlap.assign = function(fr=NULL, tss.thresh=NULL, delta.tss=NULL,
   } # minus
 
   # return data:
+  out[,2:3] = apply(out[,2:3],2,function(x){data.matrix(x)%>%as.numeric})
+  ind.rem = which(out$end < out$start)
+  if(length(ind.rem)>0){out = out[-ind.rem,]}
   return(out)
 
 } # multi.overlap.assign

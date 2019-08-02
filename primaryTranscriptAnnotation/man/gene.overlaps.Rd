@@ -7,20 +7,24 @@
 gene.overlaps(bed = NULL)
 }
 \arguments{
-\item{bed}{bed6 frame with processed gene annotations}
+\item{bed}{A bed6 frame with processed gene annotations}
 }
 \value{
-A list with has.start.inside and is.a.start.inside. has.start.inside = bed6 file that documents genes in which there are starts
-of other genes. is.a.start.inside = bed6 file that documents genes that start inside other genes.
+A list with has.start.inside, is.a.start.inside, and cases. The object has.start.inside is a bed6 frame that documents genes in which there are starts
+of other genes. The object is.a.start.inside is a bed6 frame that documents genes that start inside other genes. The object
+cases documents loci in which 2 or more genes overlap (col 7 of a bed format frame).
 }
 \description{
-This function identifies gene overlapss.
+This function identifies gene overlaps.
 }
 \examples{
 # run overlap analysis
-overlap.data = gene.overlaps( bed = bed.long.filtered2.tss )
+overlap.data = gene.overlaps( bed = TSS.gene.filtered1 )
 has.start.inside = overlap.data$has.start.inside
 is.a.start.inside = overlap.data$is.a.start.inside
-dim(has.start.inside)
-dim(is.a.start.inside)
+head(has.start.inside)
+head(is.a.start.inside)
+head(overlap.data$cases)
+length(unique(overlap.data$cases$gene))
+
 }

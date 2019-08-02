@@ -11,51 +11,52 @@ adjacent.gene.coords(fix.genes = NULL, bed.long = NULL, exon1 = NULL,
   fname = "adjacentSplines.pdf")
 }
 \arguments{
-\item{fix.genes}{frame with upstream and downstream genes}
+\item{fix.genes}{A frame with upstream and downstream genes}
 
-\item{bed.long}{long gene annotations, see get.largest.interval()}
+\item{bed.long}{Long gene annotations, see get.largest.interval()}
 
-\item{exon1}{bed6 frame with first exon gene annotations}
+\item{exon1}{A bed6 frame with first exon gene annotations}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{bp.bin}{the interval will be separated into adjacent bins of this size}
+\item{bp.bin}{The interval will be separated into adjacent bins of this size}
 
-\item{shift.up}{look upstream of the long gene start by this amount to search for a viable TSS}
+\item{shift.up}{Look upstream of the long gene start by this amount to search for a viable TSS}
 
-\item{dist.from.start}{distance between the TTS of the upstream gene and the TSS of the downstream gene}
+\item{dist.from.start}{Distance between the TTS of the upstream gene and the TSS of the downstream gene}
 
-\item{delta.tss}{amount by which to shift the identied TSS upstream of the identified interval}
+\item{delta.tss}{Amount by which to shift the identied TSS upstream of the identified interval}
 
-\item{knot.div}{the number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number}
+\item{knot.div}{The number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number}
 
-\item{knot.thresh}{minimum number of knots}
+\item{knot.thresh}{Minimum number of knots}
 
-\item{diff.tss}{minimum distance between TSSs}
+\item{diff.tss}{Minimum distance between TSSs}
 
-\item{pause.bp}{number of bp by which a pause site should be considered downstrean of a TSS}
+\item{pause.bp}{Number of bp by which a pause site should be considered downstrean of a TSS}
 
-\item{fname}{file name (.pdf) for output plots}
+\item{fname}{File name (.pdf) for output plots}
 }
 \value{
-A frame with the adjusted coordinates for the input gene set, along with a plot. The titles for the plots indicate the upstream gene, the downstream gene, and the strand.
-For genes on the plus strand, the upstream gene is on the left. For the minus strand, the upstream gene is on the right.
-The red line denotes the spline fit and the vertical lines indicate the TSSs.
+A frame with the adjusted coordinates for the input gene set, along with a plot. 
+The titles for the plots indicate the upstream gene, the downstream gene, and the strand.
+For genes on the plus strand, the upstream gene is on the left. 
+For the minus strand, the upstream gene is on the right.
+The red line denotes the spline fit and the vertical lines indicate the pause peaks.
 The plot is intended for diagnostic purposes.
 }
 \description{
-We have identified adjacent gene pairs with overlaps based on manual analyses.
-We empirically define TSSs for these genes by binning the region spanned by both genes,
+Adjacent gene pairs can be identified based on manual analyses, 
+despite overlaps in the largest interval coordinates.
+We empirically define pause sites for these genes by binning the region spanned by both genes,
 fitting smooth spline curves to the binned read counts, and identifying the two largest peaks separated
 by a specified distance. We set a bin size and apply the constraint that the identified
-'pause' peaks must be a given distance apart. The search region includes a specified distance upstream of
-the upstream-most gene. We shift the identified peaks upstream. For the spline fits, we set the
+pause peaks must be a given distance apart. 
+For the spline fits, we set the
 number of knots to the number of bins divided by specified setting.
-We identify the TSSs as the exon 1 coordinates closest to the pasue site peaks.
-We identify the TTS of the upstream gene as an interval from the TSS of the downstream gene.
-The input TTS for the downstream gene is retained.
+We identify the TSSs as the exon 1 coordinates closest to the pause site peaks.
 }
 \examples{
 # get the start sites for adjacent gene pairs

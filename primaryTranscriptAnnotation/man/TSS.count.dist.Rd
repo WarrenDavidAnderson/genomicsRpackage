@@ -8,15 +8,15 @@ TSS.count.dist(bed = NULL, bw.plus = NULL, bw.minus = NULL,
   window = NULL, bp.bin = NULL)
 }
 \arguments{
-\item{bed}{bed frame for TSS evaluation}
+\item{bed}{A bed frame for TSS evaluation}
 
-\item{bw.plus}{= plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{window}{region size, centered on the TSS for analysis}
+\item{window}{Region size, centered on the TSS for analysis}
 
-\item{bp.bin}{the interval will be separated into adjacent bins of this size}
+\item{bp.bin}{The interval will be separated into adjacent bins of this size}
 }
 \value{
 A list with three vector elements: raw, scaled, and dist.

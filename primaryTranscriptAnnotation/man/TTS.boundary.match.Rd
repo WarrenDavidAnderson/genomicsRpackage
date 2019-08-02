@@ -7,9 +7,9 @@
 TTS.boundary.match(coords = NULL, bed.for.tts.eval = NULL)
 }
 \arguments{
-\item{coords}{bed6 frame with inferred coordinates}
+\item{coords}{A bed6 frame with inferred coordinates (from get.TTS())}
 
-\item{bed.for.tts.eval}{bed6 frame with TTS search regions (see get.end.intervals())}
+\item{bed.for.tts.eval}{A bed6 frame with TTS search regions (from get.end.intervals())}
 }
 \value{
 A fraction [0,1].

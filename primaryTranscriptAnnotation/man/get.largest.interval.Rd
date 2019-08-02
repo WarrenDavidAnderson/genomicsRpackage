@@ -7,7 +7,7 @@
 get.largest.interval(bed = NULL)
 }
 \arguments{
-\item{bed}{bed6 frame with comprehensive gene annotations, defaults to NULL}
+\item{bed}{A bed6 frame with comprehensive gene annotations, defaults to NULL}
 }
 \value{
 A bed6 frame with the largest annotation for each gene

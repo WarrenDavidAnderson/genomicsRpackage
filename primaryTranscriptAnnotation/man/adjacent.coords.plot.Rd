@@ -6,26 +6,28 @@
 \usage{
 adjacent.coords.plot(adjacent.coords = NULL, pair = NULL,
   bw.plus = NULL, bw.minus = NULL, bp.bin = 5, xper = 0.2,
-  yper = 1.3)
+  yper = 0.3)
 }
 \arguments{
 \item{adjacent.coords}{bed6 frame with coordinates for adjacent genes}
 
-\item{pair}{frame with one row, upstream and downstream genes}
+\item{pair}{Frame with one row, upstream and downstream genes}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{xper}{fraction of the x-axis before the gene starts}
+\item{xper}{Fraction of the x-axis before the gene starts}
 
-\item{yper}{fraction of the y-axis with open space above the read data}
+\item{yper}{Fraction of the y-axis with open space above the read data}
 }
 \value{
 A plot with read data and gene coordinate annotations.
 }
 \description{
-Plot the coordinates, along with read data, for overlapping genes that were identified as an adjacent pair.
+Plot the coordinates, along with read data, for overlapping genes 
+that were identified as an adjacent pair, 
+with coordinates determined using adjacent.gene.coords().
 }
 \examples{
 # visualize coordinates for a specific pair

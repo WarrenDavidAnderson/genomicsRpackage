@@ -8,15 +8,15 @@ read.count.end(bed = NULL, bw.plus = NULL, bw.minus = NULL,
   fraction.end = NULL, add.to.end = NULL)
 }
 \arguments{
-\item{bed}{a bed6 frame}
+\item{bed}{A bed6 frame}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{fraction.end}{fraction of the annotated gene end (0,1)}
+\item{fraction.end}{Fraction of the annotated gene end (0,1)}
 
-\item{add.to.end}{number of base pairs beyond the gene end within which to count reads}
+\item{add.to.end}{Number of base pairs beyond the gene end within which to count reads}
 }
 \value{
 A list with counts and desity.

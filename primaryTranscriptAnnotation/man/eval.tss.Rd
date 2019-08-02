@@ -8,19 +8,19 @@ eval.tss(bed1 = NULL, bed2 = NULL, bw.plus = NULL, bw.minus = NULL,
   window = NULL, bp.bin = NULL, fname = NULL)
 }
 \arguments{
-\item{bed1}{bed frame with inferred TSSs}
+\item{bed1}{A bed frame with inferred TSSs}
 
-\item{bed2}{bed frame with reference TSSs}
+\item{bed2}{A bed frame with reference TSSs}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{window}{region size, centered on the TSS for analysis}
+\item{window}{Region size, centered on the TSS for analysis}
 
-\item{bp.bin}{the interval will be separated into adjacent bins of this size}
+\item{bp.bin}{The interval will be separated into adjacent bins of this size}
 
-\item{fname}{.pdf file name for output plots (if NULL, no plot)}
+\item{fname}{A .pdf file name for output plots (if NULL, no plot)}
 }
 \value{
 A list of two lists and a plot (optional, specifiy fname for the plot to be printed to file).
@@ -29,22 +29,23 @@ $tss.dists.inf cooresponds to the TSS data (bed1) and
 $tss.dists.lng cooresponds to the largest interval data (bed2).
 All outputs are organized based on TSS position (left-upstream).
 raw = binned raw counts. scaled = binned scaled counts (0,1),
-with genes sorted based on the distance between the TSS and the maax read interval.
+with genes sorted based on the distance between the TSS and the max read interval.
 dist = upper bound distances ( min(|dists|) = bp.bin ).
 See examples and vignette for more details. The first row of plots includes dirstibutions
 of distances between the TSS and the maximal reads for the inferred TSSs (left) and largest interval TSSs (right).
 The second row of plots shows the relationship between the distances from TSSs to max reads and the read depth
 in the region of read count evaluation (left inferred, right largest interval).
-The heatmaps show read profiles (horizontal axis, distances centered in the middlr of the window; vertical axis, distinct genes).
+The heatmaps show read profiles (horizontal axis, distances centered in the middle of the window; vertical axis, distinct genes).
 The genes are sorted based on the inferred TSSs to the max reads (left), and the largest interval distances (right) are organized
 based on the gene order for the inferred TSSs.
 }
 \description{
 This function was designed to evaluate the results of out TSS identification analysis.
 The user should input inferred and largest interval coordinates (bed1 and bed2, respectively).
-We specify a region centered
-on the TSS. We obtain read counts in bins that span this window. We sort the genes based on the bin with the
-maximal reads and we scale the data to the interval (0,1) for visualization. We compute the distances between the TSS and
+We specify a region centered on the TSS. We obtain read counts in bins that span this window. 
+We sort the genes based on the bin with the
+maximal reads and we scale the data to the interval (0,1) for visualization. 
+We compute the distances between the TSS and
 the bin with the max reads within the specified window. Note that this function calls
 TSS.count.dist() for the TSS distance analysis.
 }

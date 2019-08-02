@@ -5,20 +5,22 @@
 \title{Filter genes with overlaps}
 \usage{
 remove.overlaps(bed = NULL, overlaps = NULL, transcripts = NULL,
-  bw.plus = NULL, bw.minus = NULL)
+  bw.plus = NULL, bw.minus = NULL, by = "den")
 }
 \arguments{
-\item{bed}{bed6 file with gene annotations}
+\item{bed}{A bed6 frame with gene annotations}
 
-\item{overlaps}{frame with 6 columns in the bed6 format and a 7th column indicating overlap cases}
+\item{overlaps}{Frame with 6 columns in the bed6 format and a 7th column indicating integer overlap cases}
+
+\item{by}{Indicate whether to select transcripts based on read counts (by="cnt") or densities (by="den",default)}
 }
 \value{
 A bed6 frame with overlaps removed. That is, a modified version of the input bed.
 }
 \description{
-For a given case in which multiple genes overlap, this function modifies evaluates read density
+For a given case in which multiple genes overlap, this function evaluates read density
 for all transcripts cooresponding to each gene.
-The gene with the largest density across all transcripts is retain in the input annotation.
+The gene with the largest read count (by="cnt", default) or density (by="den") across all transcripts is retained in the input annotation.
 The related functions get.dups() and gene.overlaps() can be used to identify overlap cases.
 }
 \examples{

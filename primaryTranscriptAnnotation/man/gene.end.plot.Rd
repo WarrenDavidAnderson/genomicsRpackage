@@ -10,42 +10,43 @@ gene.end.plot(bed = NULL, gene = NULL, bw.plus = NULL,
   tau.dist = 10000, frac.max = 1, frac.min = 0.2)
 }
 \arguments{
-\item{bed}{bed6 gene coordinates with gene end intervals for estimation of the TTS}
+\item{bed}{Bed6 gene coordinates with gene end intervals for estimation of the TTS}
 
-\item{gene}{a specific gene for plotting}
+\item{gene}{A specific gene for plotting}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{bp.bin}{the interval at the gene end will be separated into adjacent bins of this size}
+\item{bp.bin}{The interval at the gene end will be separated into adjacent bins of this size}
 
-\item{pk.thresh}{the TTS is defined as pk.thresh percent of max peak of the spline fit}
+\item{pk.thresh}{The TTS is defined as pk.thresh percent of max peak of the spline fit}
 
-\item{knot.div}{the number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number;
+\item{knot.div}{The number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number;
 increasing this parameter results and a smoother curve}
 
-\item{knot.thresh}{minimum number of knots, if knot.div gives a lower number, use this}
+\item{knot.thresh}{Minimum number of knots, if knot.div gives a lower number, use this}
 
-\item{cnt.thresh}{read count number below which the TTS is not evaluated}
+\item{cnt.thresh}{Read count number below which the TTS is not evaluated}
 
-\item{add.to.end}{the maximal length of the search region (bp)}
+\item{add.to.end}{The maximal length of the search region (bp)}
 
-\item{tau.dist}{distance constant for the exponential defining the region for peak detection}
+\item{tau.dist}{Distance constant for the exponential defining the region for peak detection}
 
-\item{frac.max}{maximal fraction of gene end region for peal detection}
+\item{frac.max}{Maximal fraction of gene end region for peal detection}
 
-\item{frac.min}{minimal fraction of gene end region for peal detection}
+\item{frac.min}{Minimal fraction of gene end region for peal detection}
 }
 \value{
-A single plot is generated.
+A single plot is generated with the binned reads (circles), a fitted curve (red), 
+and the location of the identified TTS (vertical line).
 }
 \description{
-This function can be used to evaluate the performance of get.gene.end() and get.TTS().
+This function can be used to evaluate the performance of get.TTS().
 We also recommend visualizing the results of data-driven gene annotations using a genome browser.
 }
 \examples{
-gene.end.plot(bed=bed.for.tts.eval, gene="Aamp",
+gene.end.plot(bed=bed.for.tts.eval, gene="Pparg",
               bw.plus=bw.plus, bw.minus=bw.minus,
               bp.bin=bp.bin, add.to.end=add.to.end, knot.div=knot.div,
               pk.thresh=pk.thresh, knot.thresh=knot.thresh,

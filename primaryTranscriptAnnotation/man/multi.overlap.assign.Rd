@@ -8,19 +8,19 @@ multi.overlap.assign(fr = NULL, tss.thresh = NULL, delta.tss = NULL,
   delta.tts = NULL, cl = NULL)
 }
 \arguments{
-\item{fr}{= frame with full bedtools overlap data for a class5 TU
+\item{fr}{A frame with full bedtools overlap data for a class5 TU
 with multiple internal annotations}
 
-\item{tss.thresh}{= number of bp a TU beginning can be off
+\item{tss.thresh}{Number of bp a TU beginning can be off
 from an annotation in order to be assigned that annotation}
 
-\item{delta.tss}{= max distance between an upstream gene end and
+\item{delta.tss}{Max distance between an upstream gene end and
 downstream gene start cl = multi-overlap class}
 
-\item{delta.tts}{max difference distance between and annotated gene
+\item{delta.tts}{Max difference distance between and annotated gene
 end and the start of a downstream gene before an intermediate TU id is assigned}
 
-\item{cl}{multi-overlap class}
+\item{cl}{Multi-overlap class}
 }
 \value{
 A bed data with chr, start, end, id, class, and strand.

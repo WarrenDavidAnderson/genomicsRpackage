@@ -8,15 +8,14 @@ single.overlap.assign(fr = NULL, tss.thresh = NULL, delta.tss = NULL,
   delta.tts = NULL, cl = NULL)
 }
 \arguments{
-\item{fr}{frame with full bedtools overlap data for a class1
-TU with multiple internal annotations}
+\item{fr}{A frame with full bedtools overlap data for a class1}
 
-\item{tss.thresh}{number of bp a TU beginning can be off
+\item{tss.thresh}{Number of bp a TU beginning can be off
 from an annotation in order to be assigned that annotation}
 
-\item{delta.tss}{max distance between an upstream gene end and downstream gene start}
+\item{delta.tss}{Max distance between an upstream gene end and downstream gene start}
 
-\item{cl}{multi-overlap class}
+\item{cl}{Overlap class}
 }
 \value{
 A bed data frame with chr, start, end, id, class, and strand.

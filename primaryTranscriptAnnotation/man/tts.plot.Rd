@@ -10,39 +10,41 @@ tts.plot(coords = NULL, gene.end = NULL, long.gene = NULL,
   frac.max = NULL, frac.min = NULL)
 }
 \arguments{
-\item{coords}{bed6 frame with inferred coordinates}
+\item{coords}{A bed6 frame with inferred coordinates}
 
-\item{gene.end}{bed6 frame with peak search regions}
+\item{gene.end}{A bed6 frame with peak search regions}
 
-\item{long.gene}{bed6 frame with largest interval coordinates}
+\item{long.gene}{A bed6 frame with largest interval coordinates}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{gene}{gene for plotting}
+\item{gene}{A gene for plotting}
 
-\item{xper}{fraction of the x-axis before the gene starts}
+\item{xper}{Fraction of the x-axis before the gene starts}
 
-\item{yper}{fraction of the y-axis with open space above the read data}
+\item{yper}{Fraction of the y-axis with open space above the read data}
 
-\item{add.to.end}{the maximal length of the search region (bp)}
+\item{add.to.end}{The maximal length of the search region (bp)}
 
-\item{tau.dist}{distance constant for the exponential defining the region for peak detection}
+\item{tau.dist}{Distance constant for the exponential defining the region for peak detection}
 
-\item{frac.max}{maximal fraction of gene end region for peal detection}
+\item{frac.max}{Maximal fraction of gene end region for peak detection}
 
-\item{frac.min}{minimal fraction of gene end region for peal detection}
+\item{frac.min}{Minimal fraction of gene end region for peak detection}
 }
 \value{
-A plot with reads, interred annptation (black) largest interval annotation (gray),
-TTS search interval (solid, vertical), and TTS peak interval (dashed, vertical).
+A plot with reads, the interred annotation (black), the largest interval annotation (gray),
+the TTS search region (solid, vertical), and the TTS peak region (dashed, vertical).
 }
 \description{
-Plot the inferred and largest interval coordinates, along with read data,
-indicate the peak search region, and indicate the total search region.
+This function plots the inferred and largest interval coordinates along with read data.
+The plot annotates the peak search region and the total search region.
 }
 \examples{
+# first run inferred.coords = get.TTS(...)
+coords = inferred.coords$bed
 gene.end = bed.for.tts.eval
 long.gene = largest.interval.bed
 tts.plot(coords=coords, gene.end=gene.end, long.gene=long.gene,

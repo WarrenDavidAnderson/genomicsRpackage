@@ -7,16 +7,15 @@
 get.dups(bed = NULL)
 }
 \arguments{
-\item{bed}{a bed file}
+\item{bed}{A bed frame}
 }
 \value{
-A bed file with duplicate entries. Col 7 indicates ordered overlap loci.
+A bed frame with duplicate entries. Col 7 indicates ordered overlap loci.
 }
 \description{
-This function identifies an extreme for of gene overlaps in which multiple identifiers
+This function identifies an extreme form of gene overlaps in which multiple identifiers
 correspond to identical start or end coordinates.
 }
 \examples{
 dups0 = get.dups(bed = TSS.gene)
-
 }

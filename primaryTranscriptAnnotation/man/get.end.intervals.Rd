@@ -8,16 +8,16 @@ get.end.intervals(bed = NULL, add.to.end = NULL, fraction.end = NULL,
   dist.from.start = NULL)
 }
 \arguments{
-\item{bed}{processed bed6 file with one entry per gene and identified TSSs}
+\item{bed}{Processed bed6 frame with one entry per gene and identified TSSs}
 
-\item{add.to.end}{number of bases to add to the end of each gene to define the search region}
+\item{add.to.end}{Number of bases to add to the end of each gene to define the search region}
 
-\item{fraction.end}{fraction of the gene annotation to consider at the end of the gene}
+\item{fraction.end}{Fraction of the gene annotation to consider at the end of the gene}
 
-\item{dist.from.start}{the maximal allowable distance between the end of one gene and the start of the next}
+\item{dist.from.start}{The maximal allowable distance between the end of one gene and the start of the next}
 }
 \value{
-A bed6 for gene end evaluation.
+A bed6 frame for TTS evaluation, see get.TTS().
 }
 \description{
 We define regions at the gene ends to examine read counts for TTS identification.
@@ -31,12 +31,13 @@ TTS cannot be identified closer than a specified distance to the previously iden
 This analysis also incorporates the constraint that a gene end region identified
 cannot cross the TSS of a downstream gene, thereby preventing gene overlaps on a given strand.
 Thus, we clip the amount of bases added on to the gene end as necessary to avoid overlaps.
+The output of this function is the input for get.TTS().
 }
 \examples{
 # get intervals for TTS evaluation
 add.to.end = 100000
-fraction.end=0.1
-dist.from.start=50
+fraction.end = 0.2
+dist.from.start = 50
 bed.for.tts.eval = get.end.intervals(bed=bed.long.filtered4.tss,
                                  add.to.end=add.to.end,
                                  fraction.end=fraction.end,

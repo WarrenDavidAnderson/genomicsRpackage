@@ -4,14 +4,17 @@
 \alias{read.count.transcript}
 \title{Evaluate reads and compute densities for each transcript of each gene.}
 \usage{
-read.count.transcript(bed = NULL, bw.plus = NULL, bw.minus = NULL)
+read.count.transcript(bed = NULL, bw.plus = NULL, bw.minus = NULL,
+  by = "cnt")
 }
 \arguments{
-\item{bed}{a bed6 frame}
+\item{bed}{A bed6 frame}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
+
+\item{by}{Either "cnt" (default) or "den" for selecting transcripts based on either count or density}
 }
 \value{
 A list with counts and desity.
@@ -21,7 +24,8 @@ density = vector with end of gene densities for each gene.
 \description{
 Input coordinates for evaluation of counts and densities.
 Return the maximal values across all transcripts of a given gene.
-In particular, we return the density associated with the max count for a specific gene.
+For by="cnt" (default), we return the density associated with the max count for a specific gene.
+For by="den", we return the density associated with the max count for a specific gene.
 }
 \examples{
 # get read counts and densities for the max transcript of each annotated gene

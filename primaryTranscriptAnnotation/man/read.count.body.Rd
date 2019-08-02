@@ -8,13 +8,13 @@ read.count.body(bed = NULL, bw.plus = NULL, bw.minus = NULL,
   bp.start = 0)
 }
 \arguments{
-\item{bed}{a bed6 frame}
+\item{bed}{A bed6 frame}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{bp.start}{optional number of bases to omit from the upstream gene boundary}
+\item{bp.start}{Optional number of bases to omit from the upstream gene boundary}
 }
 \value{
 A list with counts and desity.

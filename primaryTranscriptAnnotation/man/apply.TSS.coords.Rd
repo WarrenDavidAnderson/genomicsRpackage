@@ -7,17 +7,17 @@
 apply.TSS.coords(bed = NULL, tss = NULL)
 }
 \arguments{
-\item{bed}{bed6 file with comprehensive gene annotations}
+\item{bed}{A bed6 frame with gene annotations}
 
-\item{tss}{TSS estimates, output from get.TSS().
+\item{tss}{TSS estimates, from inside get.TSS().
 Note that the TSS genes must be a subset of the genes in the bed6 data.}
 }
 \value{
-A bed6 file with estimated TSSs incorporated
+A bed6 frame with estimated TSSs incorporated
 }
 \description{
 This function will apply transcription start site (TSS) coordinates to a bed6 frame.
-This function is embedded inside get.TSS().
+This function is embedded within get.TSS().
 }
 \examples{
 out = apply.TSS.coords(bed=bed.out, tss=tss)

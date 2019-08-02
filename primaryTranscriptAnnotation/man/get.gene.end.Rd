@@ -10,35 +10,36 @@ get.gene.end(bed = NULL, bw = NULL, bp.bin = NULL,
   frac.max = NULL, frac.min = NULL, sum.thresh = NULL)
 }
 \arguments{
-\item{bed}{bed6 gene coordinates with gene end intervals for estimation of the TTS}
+\item{bed}{A bed6 gene coordinates with gene end intervals for estimation of the TTS}
 
-\item{bw}{plus or minus strand bigWig data}
+\item{bw}{Plus or minus strand bigWig data}
 
-\item{bp.bin}{the interval at the gene end will be separated into adjacent bins of this size}
+\item{bp.bin}{The interval at the gene end will be separated into adjacent bins of this size}
 
-\item{pk.thresh}{the TTS is defined as pk.thresh percent of max peak of the spline fit}
+\item{pk.thresh}{The TTS is defined as pk.thresh percent of max peak of the spline fit (identified within the peak search region)}
 
-\item{knot.div}{the number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number}
+\item{knot.div}{The number of knots for the spline fit is defined as the number of bins covering the gene end divided by this number}
 
-\item{cnt.thresh}{read count number below which the TTS is not evaluated}
+\item{cnt.thresh}{Read count number below which the TTS is not evaluated}
 
-\item{knot.thresh}{minimum number of knots, if knot.div gives a lower number, use this}
+\item{knot.thresh}{Minimum number of knots, if knot.div gives a lower number, use this}
 
-\item{add.to.end}{the maximal length of the search region (bp)}
+\item{add.to.end}{The maximal length of the search region (bp)}
 
-\item{tau.dist}{distance constant for the exponential defining the region for peak detection}
+\item{tau.dist}{Distance constant for the exponential function defining the region for peak detection}
 
-\item{frac.max}{maximal fraction of gene end region for peal detection}
+\item{frac.max}{Maximal fraction of gene end region for peak detection}
 
-\item{frac.min}{minimal fraction of gene end region for peal detection}
+\item{frac.min}{Minimal fraction of gene end region for peak detection}
 
-\item{sum.thresh}{threshold for the min sum of read counts, below this default to the input TTS}
+\item{sum.thresh}{Threshold for the min sum of read counts}
 }
 \value{
 A vector of TTS coordinates
 }
 \description{
-This function estimates the TTSs, this function is called by get.gene.end() and is not designed to be run on its own.
+This function estimates the TTSs. This function is called by get.TTS() 
+and is not designed to be run on its own. TTSs that cannot be estimated are assigned zeros.
 }
 \examples{
 See get.TTS()

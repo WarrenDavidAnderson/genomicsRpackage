@@ -8,13 +8,13 @@ multi.overlaps(overlaps = NULL, tss.thresh = NULL, delta.tss = NULL,
   delta.tts = NULL)
 }
 \arguments{
-\item{overlaps}{frame with bed intersect of inferred TUs (col1-6) with annotated TUs (col7-12) and overlaping bps (col14)}
+\item{overlaps}{A frame with bed intersect of inferred TUs (col1-6) with annotated TUs (col7-12) and overlaping bps (col14)}
 
-\item{tss.thresh}{number of bp a TU beginning can be off from an annotation in order to be assigned that annotation}
+\item{tss.thresh}{Number of bp a TU beginning can be off from an annotation in order to be assigned that annotation}
 
-\item{delta.tss}{max distance between an upstream gene end and downstream gene start}
+\item{delta.tss}{Max distance between an upstream gene end and downstream gene start}
 
-\item{delta.tts}{max difference distance between and annotated gene end and the start of a downstream gene before an intermediate TU id is assigned}
+\item{delta.tts}{Max difference distance between and annotated gene end and the start of a downstream gene before an intermediate TU id is assigned}
 }
 \value{
 A list with bed data (bed) and counts for each class (cnt5-8).

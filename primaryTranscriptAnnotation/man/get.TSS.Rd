@@ -6,36 +6,39 @@
 \usage{
 get.TSS(bed.in = NULL, bed.out = NULL, bw.plus = NULL,
   bw.minus = NULL, bp.range = NULL, cnt.thresh = NULL,
-  low.read = FALSE)
+  low.read = FALSE, by = "cnt")
 }
 \arguments{
-\item{bed.in}{bed6 frame with first exon gene annotations}
+\item{bed.in}{A bed6 frame with first exon gene annotations}
 
-\item{bed.out}{bed6 frame for output (same genes as bed.in)}
+\item{bed.out}{A bed6 frame for output (same genes as bed.in)}
 
-\item{bw.plus}{plus strand bigWig data}
+\item{bw.plus}{Plus strand bigWig data}
 
-\item{bw.minus}{minus strand bigWig data}
+\item{bw.minus}{Minus strand bigWig data}
 
-\item{bp.range}{range in bp for identifying the exon 1 with the greatest density}
+\item{bp.range}{The range in bp for identifying the exon 1 with the greatest density (e.g., c(20,120))}
 
-\item{cnt.thresh}{read count number below which the TSS is not evaluated, by default the gene is removed from the analysis max(counts) < cnt.thresh.
+\item{cnt.thresh}{Read count number below which the TSS is not evaluated, 
+by default the gene is removed from the analysis for max(counts) < cnt.thresh (low.read=FALSE).
 Indicate low.read=TRUE to use the upstream-most TSS for max(counts) < cnt.thresh.}
 
 \item{low.read}{Logical for whether to pick the upstream-most TSS if max(counts) < cnt.thresh (default FALSE)}
+
+\item{by}{indicate whether to select the TSS based on max read count (by="cnt", default) or density (cnt="den")}
 }
 \value{
 A list with a bed6 frame with inferred TSSs (bed) and a list of problematic genes (issues).
 Problems documented include start > end and start < 0. For start > end,
-the original input corrdinates were retained (bed.out).
-For start < 0, start = 0 was applied.
+the original input corrdinates are retained (bed.out).
+For start < 0, start = 0 is applied.
 }
 \description{
 We set a range around each annotated exon 1 within which to search for a read density.
-For each gene, we select the upstream coordinate of the first exon with the greatest read density, in the specified region,
+For each gene, we select the upstream coordinate of the first exon with the greatest read density, 
+in the specified region (bp.range),
 out of all first exons annotated for the given gene.
-The output of this function should be processed using the function apply.TSS.coords().
-Note that input and output genes must be matched.
+Note that input and output genes must be matched (bed.in and bed.out).
 }
 \examples{
 # select the TSS for each gene and incorporate these TSSs into the largest interval coordinates
