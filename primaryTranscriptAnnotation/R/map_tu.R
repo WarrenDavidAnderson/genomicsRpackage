@@ -475,6 +475,8 @@ single.overlap.assign = function(fr=NULL, tss.thresh=NULL, delta.tss=NULL,
   } # minus
 
   # return data:
+  # note. if tss.thresh=0 and an upstream TU fragment is <delta.tss, 
+  # it will be removed here due to an end<start error
   out[,2:3] = apply(out[,2:3],2,function(x){data.matrix(x)%>%as.numeric})
   ind.rem = which(out$end < out$start)
   if(length(ind.rem)>0){out = out[-ind.rem,]}
@@ -782,6 +784,8 @@ multi.overlap.assign = function(fr=NULL, tss.thresh=NULL, delta.tss=NULL,
   } # minus
 
   # return data:
+  # note. if tss.thresh=0 and an upstream TU fragment is <delta.tss, 
+  # it will be removed here due to an end<start error
   out[,2:3] = apply(out[,2:3],2,function(x){data.matrix(x)%>%as.numeric})
   ind.rem = which(out$end < out$start)
   if(length(ind.rem)>0){out = out[-ind.rem,]}

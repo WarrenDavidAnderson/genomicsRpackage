@@ -60,7 +60,7 @@ correspondingly larger TTS search regions with greater potential for observing e
 the peak search regions should be smaller fractions of the TTS search regions. We use
 an exponential model to define the peak search regions.
 The user should use the output of get.end.intervals() as an input to this function.
-Note that gene ends will be set to zeros if there are no counts or if the interval is too small. 
+Note that gene ends will be set to zeros if there are no counts or if the interval is too small.
 The gene ends in tss will be the default if there are problems with estimating the TTS.
 This function calls get.gene.end().
 }

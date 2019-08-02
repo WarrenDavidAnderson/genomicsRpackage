@@ -38,7 +38,7 @@ increasing this parameter results and a smoother curve}
 \item{frac.min}{Minimal fraction of gene end region for peal detection}
 }
 \value{
-A single plot is generated with the binned reads (circles), a fitted curve (red), 
+A single plot is generated with the binned reads (circles), a fitted curve (red),
 and the location of the identified TTS (vertical line).
 }
 \description{

@@ -40,20 +40,20 @@ adjacent.gene.coords(fix.genes = NULL, bed.long = NULL, exon1 = NULL,
 \item{fname}{File name (.pdf) for output plots}
 }
 \value{
-A frame with the adjusted coordinates for the input gene set, along with a plot. 
+A frame with the adjusted coordinates for the input gene set, along with a plot.
 The titles for the plots indicate the upstream gene, the downstream gene, and the strand.
-For genes on the plus strand, the upstream gene is on the left. 
+For genes on the plus strand, the upstream gene is on the left.
 For the minus strand, the upstream gene is on the right.
 The red line denotes the spline fit and the vertical lines indicate the pause peaks.
 The plot is intended for diagnostic purposes.
 }
 \description{
-Adjacent gene pairs can be identified based on manual analyses, 
+Adjacent gene pairs can be identified based on manual analyses,
 despite overlaps in the largest interval coordinates.
 We empirically define pause sites for these genes by binning the region spanned by both genes,
 fitting smooth spline curves to the binned read counts, and identifying the two largest peaks separated
 by a specified distance. We set a bin size and apply the constraint that the identified
-pause peaks must be a given distance apart. 
+pause peaks must be a given distance apart.
 For the spline fits, we set the
 number of knots to the number of bins divided by specified setting.
 We identify the TSSs as the exon 1 coordinates closest to the pause site peaks.

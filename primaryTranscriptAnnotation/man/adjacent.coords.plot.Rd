@@ -9,7 +9,7 @@ adjacent.coords.plot(adjacent.coords = NULL, pair = NULL,
   yper = 0.3)
 }
 \arguments{
-\item{adjacent.coords}{bed6 frame with coordinates for adjacent genes}
+\item{adjacent.coords}{A bed6 frame with coordinates for adjacent genes}
 
 \item{pair}{Frame with one row, upstream and downstream genes}
 
@@ -25,8 +25,8 @@ adjacent.coords.plot(adjacent.coords = NULL, pair = NULL,
 A plot with read data and gene coordinate annotations.
 }
 \description{
-Plot the coordinates, along with read data, for overlapping genes 
-that were identified as an adjacent pair, 
+Plot the coordinates, along with read data, for overlapping genes
+that were identified as an adjacent pair,
 with coordinates determined using adjacent.gene.coords().
 }
 \examples{

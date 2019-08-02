@@ -42,9 +42,9 @@ based on the gene order for the inferred TSSs.
 \description{
 This function was designed to evaluate the results of out TSS identification analysis.
 The user should input inferred and largest interval coordinates (bed1 and bed2, respectively).
-We specify a region centered on the TSS. We obtain read counts in bins that span this window. 
+We specify a region centered on the TSS. We obtain read counts in bins that span this window.
 We sort the genes based on the bin with the
-maximal reads and we scale the data to the interval (0,1) for visualization. 
+maximal reads and we scale the data to the interval (0,1) for visualization.
 We compute the distances between the TSS and
 the bin with the max reads within the specified window. Note that this function calls
 TSS.count.dist() for the TSS distance analysis.

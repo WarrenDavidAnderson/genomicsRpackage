@@ -19,7 +19,7 @@ get.TSS(bed.in = NULL, bed.out = NULL, bw.plus = NULL,
 
 \item{bp.range}{The range in bp for identifying the exon 1 with the greatest density (e.g., c(20,120))}
 
-\item{cnt.thresh}{Read count number below which the TSS is not evaluated, 
+\item{cnt.thresh}{Read count number below which the TSS is not evaluated,
 by default the gene is removed from the analysis for max(counts) < cnt.thresh (low.read=FALSE).
 Indicate low.read=TRUE to use the upstream-most TSS for max(counts) < cnt.thresh.}
 
@@ -35,7 +35,7 @@ For start < 0, start = 0 is applied.
 }
 \description{
 We set a range around each annotated exon 1 within which to search for a read density.
-For each gene, we select the upstream coordinate of the first exon with the greatest read density, 
+For each gene, we select the upstream coordinate of the first exon with the greatest read density,
 in the specified region (bp.range),
 out of all first exons annotated for the given gene.
 Note that input and output genes must be matched (bed.in and bed.out).
