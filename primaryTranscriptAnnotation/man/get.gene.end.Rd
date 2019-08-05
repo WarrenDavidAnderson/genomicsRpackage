@@ -38,7 +38,7 @@ get.gene.end(bed = NULL, bw = NULL, bp.bin = NULL,
 A vector of TTS coordinates
 }
 \description{
-This function estimates the TTSs. This function is called by get.TTS()
+This function estimates the TTSs. This function is called by get.TTS() 
 and is not designed to be run on its own. TTSs that cannot be estimated are assigned zeros.
 }
 \examples{
