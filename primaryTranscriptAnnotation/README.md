@@ -4,7 +4,7 @@ This package was developed for two purposes: (1) to generate data-driven transcr
 
 ## Documentation
 
-See the vignette user manual:  
+See the vignette and user manual:  
 primaryTranscriptAnnotation-vignette.pdf  
 primaryTranscriptAnnotation-manual.pdf
 
