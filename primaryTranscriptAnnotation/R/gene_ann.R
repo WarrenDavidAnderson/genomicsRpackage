@@ -1768,6 +1768,10 @@ chrom.size.filter = function(coords=NULL, chrom.sizes=NULL){
 #' #
 eval.tss = function(bed1=NULL, bed2=NULL, bw.plus=NULL, bw.minus=NULL,
                     window=NULL, bp.bin=NULL, fname=NULL, bin.thresh=10){
+  
+  # check for appropriate parameters
+  if(c(window/bp.bin) %% 2 != 0){stop('window/bp.bin must be even for this analysis')}
+  if(window < 200){warning('the window size may be too low, select a value >200')}
 
   # look at read distribution around identified TSSs
   tss.dists.inf = TSS.count.dist(bed=bed1, bw.plus=bw.plus, bw.minus=bw.minus,
@@ -1893,7 +1897,6 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
   bin.max = apply(counts,1,function(x){which(x==max(x))[1]}) %>% unlist
   
   # filter data for low read counts
-  # bin.thresh = 10
   ind.rem = which(counts[bin.max] < bin.thresh)
   counts = counts[-ind.rem,]
   bin.max = bin.max[-ind.rem]
@@ -1907,8 +1910,7 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
     (x-min(x))/(max(x)-min(x))}) %>% t
   
   # dist from TSS to peak, upper bound
-  dist0 = (bin.max[indices] - (window/bp.bin)/2) * bp.bin
-  dist0[dist0 <= 0] = dist0[dist0 <= 0] - bp.bin
+  dist0 = sapply(bin.max[indices],function(x){bp.relative[x]})
 
   # return data
   return(list(raw=counts.raw, scaled=counts.scl, dist=dist0))
