@@ -5,7 +5,7 @@
 \title{Evaluate TSS inference performance}
 \usage{
 eval.tss(bed1 = NULL, bed2 = NULL, bw.plus = NULL, bw.minus = NULL,
-  window = NULL, bp.bin = NULL, fname = NULL)
+  window = NULL, bp.bin = NULL, fname = NULL, bin.thresh = 10)
 }
 \arguments{
 \item{bed1}{A bed frame with inferred TSSs}
@@ -21,6 +21,8 @@ eval.tss(bed1 = NULL, bed2 = NULL, bw.plus = NULL, bw.minus = NULL,
 \item{bp.bin}{The interval will be separated into adjacent bins of this size}
 
 \item{fname}{A .pdf file name for output plots (if NULL, no plot)}
+
+\item{bin.thresh}{Minimal value of reads in the bin with the max count, below this value the transcript will be removed}
 }
 \value{
 A list of two lists and a plot (optional, specifiy fname for the plot to be printed to file).

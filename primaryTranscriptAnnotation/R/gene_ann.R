@@ -1745,6 +1745,7 @@ chrom.size.filter = function(coords=NULL, chrom.sizes=NULL){
 #' @param bw.minus Minus strand bigWig data
 #' @param window Region size, centered on the TSS for analysis
 #' @param bp.bin The interval will be separated into adjacent bins of this size
+#' @param bin.thresh Minimal value of reads in the bin with the max count, below this value the transcript will be removed
 #' @param fname A .pdf file name for output plots (if NULL, no plot)
 #' @return
 #' A list of two lists and a plot (optional, specifiy fname for the plot to be printed to file).
@@ -1766,16 +1767,29 @@ chrom.size.filter = function(coords=NULL, chrom.sizes=NULL){
 #' @examples
 #' #
 eval.tss = function(bed1=NULL, bed2=NULL, bw.plus=NULL, bw.minus=NULL,
-                    window=NULL, bp.bin=NULL, fname=NULL){
+                    window=NULL, bp.bin=NULL, fname=NULL, bin.thresh=10){
 
   # look at read distribution around identified TSSs
   tss.dists.inf = TSS.count.dist(bed=bed1, bw.plus=bw.plus, bw.minus=bw.minus,
-                             window=window, bp.bin=bp.bin)
+                             window=window, bp.bin=bp.bin, bin.thresh=bin.thresh)
 
 
   # look at read distribution around 'long gene' annotation TSSs
   tss.dists.lng = TSS.count.dist(bed=bed2, bw.plus=bw.plus, bw.minus=bw.minus,
-                                 window=window, bp.bin=bp.bin)
+                                 window=window, bp.bin=bp.bin, bin.thresh=bin.thresh)
+  
+  # filter to get common genes in both sets
+  all(rownames(tss.dists.inf$raw) == rownames(tss.dists.inf$scaled))
+  all(rownames(tss.dists.inf$raw) == names(tss.dists.inf$dist))
+  common.genes = intersect(names(tss.dists.inf$dist),names(tss.dists.lng$dist))
+  
+  tss.dists.inf$raw = tss.dists.inf$raw[rownames(tss.dists.inf$raw) %in% common.genes,]
+  tss.dists.inf$scaled = tss.dists.inf$scaled[rownames(tss.dists.inf$scaled) %in% common.genes,]
+  tss.dists.inf$dist = tss.dists.inf$dist[names(tss.dists.inf$dist) %in% common.genes]
+  
+  tss.dists.lng$raw = tss.dists.lng$raw[rownames(tss.dists.lng$raw) %in% common.genes,]
+  tss.dists.lng$scaled = tss.dists.lng$scaled[rownames(tss.dists.lng$scaled) %in% common.genes,]
+  tss.dists.lng$dist = tss.dists.lng$dist[names(tss.dists.lng$dist) %in% common.genes]
 
   if(is.null(fname)==FALSE){
 
@@ -1816,6 +1830,7 @@ eval.tss = function(bed1=NULL, bed2=NULL, bw.plus=NULL, bw.minus=NULL,
 #' @param bw.minus Minus strand bigWig data
 #' @param window Region size, centered on the TSS for analysis
 #' @param bp.bin The interval will be separated into adjacent bins of this size
+#' @param bin.thresh Minimal value of reads in the bin with the max count, below this value the transcript will be removed
 #' @return
 #' A list with three vector elements: raw, scaled, and dist.
 #' All outputs are organized based on TSS position (left-upstream).
@@ -1825,7 +1840,7 @@ eval.tss = function(bed1=NULL, bed2=NULL, bw.plus=NULL, bw.minus=NULL,
 #' @export
 #' @examples
 #' see eval.tss()
-TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp.bin=NULL){
+TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp.bin=NULL, bin.thresh=NULL){
 
   # separate genes by strand
   bed.plus = bed %>% filter(strand=="+")
@@ -1876,13 +1891,21 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
   # aggregate data and sort by max bin reads
   counts = rbind(counts.plus, counts.minus)
   bin.max = apply(counts,1,function(x){which(x==max(x))[1]}) %>% unlist
+  
+  # filter data for low read counts
+  # bin.thresh = 10
+  ind.rem = which(counts[bin.max] < bin.thresh)
+  counts = counts[-ind.rem,]
+  bin.max = bin.max[-ind.rem]
+  
+  # sort the data
   indices = order(bin.max,decreasing=FALSE)
   counts.raw = counts[indices,]
 
   # scale each row to (0,1)
   counts.scl = apply(counts.raw,1,function(x){
     (x-min(x))/(max(x)-min(x))}) %>% t
-
+  
   # dist from TSS to peak, upper bound
   dist0 = (bin.max[indices] - (window/bp.bin)/2) * bp.bin
   dist0[dist0 <= 0] = dist0[dist0 <= 0] - bp.bin

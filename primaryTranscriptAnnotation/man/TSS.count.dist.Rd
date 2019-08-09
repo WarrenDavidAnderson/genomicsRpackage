@@ -5,7 +5,7 @@
 \title{Get distances from identified transcription start sites (TSSs) to the nearest regions with peak reads}
 \usage{
 TSS.count.dist(bed = NULL, bw.plus = NULL, bw.minus = NULL,
-  window = NULL, bp.bin = NULL)
+  window = NULL, bp.bin = NULL, bin.thresh = NULL)
 }
 \arguments{
 \item{bed}{A bed frame for TSS evaluation}
@@ -17,6 +17,8 @@ TSS.count.dist(bed = NULL, bw.plus = NULL, bw.minus = NULL,
 \item{window}{Region size, centered on the TSS for analysis}
 
 \item{bp.bin}{The interval will be separated into adjacent bins of this size}
+
+\item{bin.thresh}{Minimal value of reads in the bin with the max count, below this value the transcript will be removed}
 }
 \value{
 A list with three vector elements: raw, scaled, and dist.
