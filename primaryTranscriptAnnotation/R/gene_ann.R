@@ -1894,7 +1894,12 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
 
   # aggregate data and sort by max bin reads
   counts = rbind(counts.plus, counts.minus)
-  bin.max = apply(counts,1,function(x){which(x==max(x))[1]}) %>% unlist
+  bin.max = apply(counts,1,function(x){
+    inds1 = which(x==max(x))
+    ds = bp.relative[inds1]
+    inds2 = which(abs(ds) == min(abs(ds)))[1]
+    return(inds1[inds2])
+  }) %>% unlist
   
   # filter data for low read counts
   ind.rem = which(counts[bin.max] < bin.thresh)
