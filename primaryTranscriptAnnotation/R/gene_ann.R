@@ -1767,7 +1767,7 @@ chrom.size.filter = function(coords=NULL, chrom.sizes=NULL){
 #' @examples
 #' #
 eval.tss = function(bed1=NULL, bed2=NULL, bw.plus=NULL, bw.minus=NULL,
-                    window=NULL, bp.bin=NULL, fname=NULL, bin.thresh=10){
+                    window=NULL, bp.bin=NULL, fname=NULL, bin.thresh=2){
   
   # check for appropriate parameters
   if(c(window/bp.bin) %% 2 != 0){stop('window/bp.bin must be even for this analysis')}
@@ -1839,7 +1839,7 @@ eval.tss = function(bed1=NULL, bed2=NULL, bw.plus=NULL, bw.minus=NULL,
 #' A list with three vector elements: raw, scaled, and dist.
 #' All outputs are organized based on TSS position (left-upstream).
 #' raw = binned raw counts. scaled = binned scaled counts (0,1).
-#' dist = upper bound distances ( min(|dists|) = bp.bin ).
+#' dist = upper bound distances.
 #' See examples and vignette for more details.
 #' @export
 #' @examples
@@ -1859,10 +1859,19 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
   bed.minus.window$end = bed.minus$end + window/2
 
   # set read data frames
-  bp.relative = c(seq(-window/2,-1,by=bp.bin), seq(bp.bin, window/2,by=bp.bin))
-  counts.plus = matrix(0,nrow(bed.plus.window),window/bp.bin) %>%
+  st = seq(-window/2, window/2-bp.bin, 1)
+  ed = st + bp.bin
+  cd = cbind(st, ed)
+  bp.relative = apply(cd,1,function(x){
+    ind = which(abs(x) == max(abs(x)))
+    out = x[ind]
+    if(length(out)==2){out = mean(out)}
+    return(out)
+  }) %>% unlist
+  
+  counts.plus = matrix(0,nrow(bed.plus.window), length(bp.relative)) %>%
     as.data.frame(stringsAsFactors=F)
-  counts.minus = matrix(0,nrow(bed.minus.window),window/bp.bin) %>%
+  counts.minus = matrix(0,nrow(bed.minus.window), length(bp.relative)) %>%
     as.data.frame(stringsAsFactors=F)
   rownames(counts.plus) = bed.plus.window$gene
   rownames(counts.minus) = bed.minus.window$gene
@@ -1870,10 +1879,10 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
 
   # plus counts
   for(ii in 1:nrow(bed.plus.window)){
-    start = seq(bed.plus.window$start[ii],
-                (bed.plus.window$end[ii]-bp.bin), by=bp.bin)
-    end = seq((bed.plus.window$start[ii]+bp.bin),
-              bed.plus.window$end[ii], by=bp.bin)
+    st = bed.plus.window$start[ii]
+    ed = bed.plus.window$end[ii]
+    start = seq(st, ed-bp.bin, 1)
+    end = start + bp.bin
     bed.map = data.frame(bed.plus.window$chr[ii], start, end,
                          stringsAsFactors=F)
     names(bed.map) = c("chr","start","end")
@@ -1882,17 +1891,18 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
 
   # minus counts
   for(ii in 1:nrow(bed.minus.window)){
-    end = seq(bed.minus.window$end[ii],
-              (bed.minus.window$start[ii]+bp.bin), by=-bp.bin)
-    start = seq((bed.minus.window$end[ii]-bp.bin),
-                bed.minus.window$start[ii], by=-bp.bin)
+    st = bed.minus.window$end[ii]
+    ed = bed.minus.window$start[ii]
+    start = seq(st, ed+bp.bin, -1)
+    end = start - bp.bin
     bed.map = data.frame(bed.minus.window$chr[ii],
                          start, end, stringsAsFactors=F)
     names(bed.map) = c("chr","start","end")
     counts.minus[ii,] = bed.region.bpQuery.bigWig(bw.minus, bed.map)
   }
 
-  # aggregate data and sort by max bin reads
+  # aggregate data and sort by max bin reads,
+  # ties go to the negative
   counts = rbind(counts.plus, counts.minus)
   bin.max = apply(counts,1,function(x){
     inds1 = which(x==max(x))

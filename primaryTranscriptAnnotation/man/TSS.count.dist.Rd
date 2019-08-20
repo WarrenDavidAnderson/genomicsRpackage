@@ -24,7 +24,7 @@ TSS.count.dist(bed = NULL, bw.plus = NULL, bw.minus = NULL,
 A list with three vector elements: raw, scaled, and dist.
 All outputs are organized based on TSS position (left-upstream).
 raw = binned raw counts. scaled = binned scaled counts (0,1).
-dist = upper bound distances ( min(|dists|) = bp.bin ).
+dist = upper bound distances.
 See examples and vignette for more details.
 }
 \description{

@@ -5,7 +5,7 @@
 \title{Evaluate TSS inference performance}
 \usage{
 eval.tss(bed1 = NULL, bed2 = NULL, bw.plus = NULL, bw.minus = NULL,
-  window = NULL, bp.bin = NULL, fname = NULL, bin.thresh = 10)
+  window = NULL, bp.bin = NULL, fname = NULL, bin.thresh = 2)
 }
 \arguments{
 \item{bed1}{A bed frame with inferred TSSs}
