@@ -1896,7 +1896,7 @@ TSS.count.dist = function(bed=NULL, bw.plus=NULL, bw.minus=NULL, window=NULL, bp
     start = seq(st, ed+bp.bin, -1)
     end = start - bp.bin
     bed.map = data.frame(bed.minus.window$chr[ii],
-                         start, end, stringsAsFactors=F)
+                         end, start, stringsAsFactors=F)
     names(bed.map) = c("chr","start","end")
     counts.minus[ii,] = bed.region.bpQuery.bigWig(bw.minus, bed.map)
   }
