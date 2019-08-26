@@ -1,0 +1,68 @@
+---
+title: "dynamicNetworkID"
+author: "Madhur Parihar, Warren Anderson, Rajanikanth Vadigepalli"
+date: "`r Sys.Date()`"
+output: pdf_document
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignette describes basic usage of the version 1 dynamicNetworkID package. The package is currently available on github.com.
+
+## Installation and data
+
+```{r,message=FALSE,warning=FALSE,error=FALSE}
+# install the package
+library(devtools)
+install_github("WarrenDavidAnderson/dynamicNetworkID")
+library(dynamicNetworkID)
+
+# load sample data
+data(multiorgan)
+```
+
+## Implement network identification
+
+```{r,message=FALSE,warning=FALSE,error=FALSE}
+# scale the data to the 0-1 range
+datHMF <- scale_zeroOne(multiorgan, center="mean")
+
+# implement the analysis
+result = HMF_fit(datHMF,N_mRanges=2,dt=0.1,alpha=c(0.2,0.6))
+```
+
+## Plot effects of regularization parameters
+
+```{r, fig.show='hold', fig.height = 2, fig.width = 5}
+library(ggplot2)
+ggplot(result$errors, aes(x=log(lambda_value), y=log(error), color=alpha_value)) + 
+  geom_point(size=5) + xlim(-16, 6) + ylim(0, 35)
+```
+
+## Plot parameter heatmap
+
+```{r, fig.show='hold',message=FALSE,warning=FALSE,error=FALSE}
+library(NMF)
+aheatmap(result$best_params,Rowv=NA,Colv=NA,breaks=c(0))
+```
+
+## Save simulation plots
+
+```{r,message=FALSE,warning=FALSE,error=FALSE}
+pdf("fits.pdf")
+par(mfrow=c(2,3))
+sim_plots(multiorgan, result$best_sim)
+dev.off()
+```
+
+
+
